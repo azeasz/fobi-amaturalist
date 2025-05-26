@@ -1,0 +1,151 @@
+.media-viewer-container {
+    width: 100%;
+    position: relative;
+}
+
+.audio-player-container {
+    width: 100%;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.play-button, .fullscreen-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.play-button:hover, .fullscreen-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.audio-progress {
+    flex: 1;
+}
+
+.time-display {
+    font-size: 0.875rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background-color: #ddd;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #3b82f6;
+    transform-origin: left;
+    transform: scaleX(0);
+}
+
+.spectrogram-container {
+    margin-top: 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.spectrogram-swiper {
+    width: 100%;
+    height: 200px;
+}
+
+.spectrogram-content {
+    display: flex;
+    height: 100%;
+}
+
+.frequency-labels {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 8px;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.spectrogram-image {
+    height: 100%;
+    width: auto;
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.gallery-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.license-overlay {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.no-media {
+    width: 100%;
+    padding: 32px;
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    color: #666;
+}
+
+/* Custom Image Gallery Styles */
+.custom-image-gallery {
+    background: #fff;
+}
+
+.audio-thumbnail {
+    position: relative;
+}
+
+.audio-thumb-container {
+    position: relative;
+}
+
+.audio-icon-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 8px;
+    border-radius: 50%;
+} 

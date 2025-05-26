@@ -1,0 +1,42 @@
+.taxonomy-detail-container {
+    margin: 2rem 0;
+}
+
+.taxonomy-slider {
+    margin: 0 -1rem;
+}
+
+.taxonomy-slider .slick-prev,
+.taxonomy-slider .slick-next {
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+}
+
+.taxonomy-slider .slick-prev {
+    left: 10px;
+}
+
+.taxonomy-slider .slick-next {
+    right: 10px;
+}
+
+.taxonomy-slider .slick-prev:before,
+.taxonomy-slider .slick-next:before {
+    font-size: 40px;
+    color: #4B5563;
+    opacity: 0.5;
+}
+
+.taxonomy-slider .slick-dots {
+    bottom: -30px;
+}
+
+.taxonomy-slider .slick-dots li button:before {
+    font-size: 12px;
+    color: #4B5563;
+}
+
+.taxonomy-slider .slick-dots li.slick-active button:before {
+    color: #1F2937;
+}

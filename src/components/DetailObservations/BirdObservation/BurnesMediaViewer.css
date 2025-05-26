@@ -1,0 +1,161 @@
+.media-viewer-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.audio-player-container {
+    width: 100%;
+    background: #1a1a1a;
+    padding: 1rem;
+    color: white;
+}
+
+.audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.play-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.audio-progress {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.time-display {
+    font-size: 0.875rem;
+    color: #999;
+}
+
+.progress-bar {
+    height: 4px;
+    background: #333;
+    cursor: pointer;
+    position: relative;
+}
+
+.progress-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #4a90e2;
+    transform-origin: left;
+    transform: scaleX(0);
+}
+
+.spectrogram-container {
+    width: 100%;
+    background: #000;
+    position: relative;
+}
+
+.spectrogram-swiper {
+    width: 100%;
+    height: 200px;
+}
+
+.spectrogram-content {
+    display: flex;
+    height: 100%;
+}
+
+.frequency-labels {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 0.5rem;
+    color: #999;
+    font-size: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.spectrogram-image {
+    height: 100%;
+    width: auto;
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+}
+
+.gallery-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.license-overlay {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.fullscreen-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.audio-thumb-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.audio-icon-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 50%;
+}
+
+.audio-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Custom Image Gallery Styles */
+.custom-image-gallery {
+    background: #000;
+}
+
+.image-gallery-thumbnails-container {
+    background: #1a1a1a;
+}
+
+.image-gallery-thumbnail.active, 
+.image-gallery-thumbnail:hover {
+    border: 2px solid #4a90e2;
+}
+
+.image-gallery-thumbnail {
+    transition: border 0.3s ease;
+} 

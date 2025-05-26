@@ -1,0 +1,420 @@
+.media-card {
+    @apply bg-[#1e1e1e] rounded-lg shadow-md overflow-hidden border border-[#444];
+}
+
+.media-card.selected {
+    @apply ring-2 ring-[#1a73e8];
+}
+
+.media-preview {
+    position: relative;
+}
+
+.image-container {
+    @apply aspect-square;
+}
+
+.image-preview {
+    @apply w-full h-full object-cover;
+}
+
+.audio-container {
+    @apply bg-[#2c2c2c] flex flex-col;
+    position: relative;
+}
+
+.audio-container .selection-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    background: rgba(44, 44, 44, 0.8);
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.audio-player-container {
+    @apply p-4 border-b border-[#444];
+}
+
+.audio-player {
+    width: 100%;
+    height: 36px;
+    background: transparent;
+}
+
+.audio-player::-webkit-media-controls-panel {
+    background-color: #2c2c2c;
+}
+
+.audio-player::-webkit-media-controls-current-time-display,
+.audio-player::-webkit-media-controls-time-remaining-display {
+    color: #e0e0e0;
+}
+
+.spectrogram-loading {
+    position: relative;
+    background: #1f2937;
+    padding-bottom: 35%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid #ffffff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+.audio-info {
+    @apply px-4 py-2 bg-[#2c2c2c] border-t border-[#444] text-xs text-gray-400;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.time-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.format-info {
+    @apply text-gray-400;
+}
+
+.selection-checkbox {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+}
+
+.selection-checkbox input {
+    @apply w-5 h-5;
+}
+
+/* Form styling */
+.form-container {
+    @apply p-4 bg-[#1e1e1e];
+}
+
+.form-group {
+    @apply space-y-3;
+}
+
+.input-group {
+    @apply flex items-center space-x-2;
+}
+
+.input-icon {
+    @apply w-5 h-5 text-gray-400;
+}
+
+.text-input {
+    @apply w-full border border-[#444] rounded p-2 bg-[#2c2c2c] text-gray-200;
+}
+
+.radio-group {
+    @apply mt-4;
+}
+
+.radio-option {
+    @apply flex items-center space-x-2 text-gray-300;
+}
+
+.action-buttons {
+    @apply flex justify-between mt-4;
+}
+
+.save-button {
+    @apply bg-[#1a73e8] text-white px-4 py-2 rounded hover:bg-[#0d47a1] transition-colors;
+}
+
+.delete-button {
+    @apply bg-[#e53935] text-white px-4 py-2 rounded hover:bg-[#c62828] transition-colors;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.spectrogram-wrapper {
+    width: 100%;
+    position: relative;
+    height: 270px;
+    margin: 10px 0;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+    z-index: 1;
+    border: 1px solid #444;
+}
+
+.spectrogram-container {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    z-index: 2;
+}
+
+.frequency-labels {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 5px;
+    pointer-events: none;
+    z-index: 3;
+    background-color: rgba(30, 30, 30, 0.8);
+    color: #e0e0e0;
+    font-size: 12px;
+    width: 50px;
+}
+
+.frequency-labels span {
+    writing-mode: horizontal-tb;
+    transform: rotate(180deg);
+    text-align: left;
+    padding: 2px;
+    white-space: nowrap;
+    display: none;
+}
+
+.modal-progress-overlay {
+    transition: width 0.1s linear;
+}
+
+.progress-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.059);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.1s linear;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.spectrogram-image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.swiper-slide {
+    width: auto !important;
+    height: 100%;
+    transform: translate3d(0, 0, 0);
+    z-index: 2;
+}
+
+.spectrogram-swiper {
+    width: 100%;
+    height: 100%;
+    transform: translate3d(0, 0, 0);
+    z-index: 2;
+}
+
+/* Styling untuk modal content */
+.modal-spectrogram-container {
+    position: relative;
+    width: 90vw;
+    max-width: 1200px;
+    margin: 2rem auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 40px 60px 20px 80px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.frequency-labels-modal {
+    position: absolute;
+    left: 20px;
+    top: 40px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #666;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(27, 27, 27, 0.9);
+    padding: 5px 10px;
+    border-radius: 4px;
+    z-index: 100001;
+}
+
+.frequency-labels-modal span {
+    writing-mode: horizontal-tb;
+    padding: 5px;
+    white-space: nowrap;
+}
+
+/* Time labels di bawah spectrogram */
+.time-labels-modal {
+    position: absolute;
+    bottom: 0;
+    left: 80px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    color: #666;
+    font-size: 12px;
+    padding: 5px 0;
+}
+
+/* Container untuk spectrogram dan overlay */
+.spectrogram-content-wrapper {
+    position: relative;
+    width: 100%;
+    margin-left: 20px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.spectrogram-image-modal {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+/* Tambahan untuk animasi yang lebih smooth */
+@media (prefers-reduced-motion: no-preference) {
+    .progress-overlay {
+        transition: transform 0.1s linear;
+    }
+}
+
+/* Styling untuk modal spectrogram */
+.spectrogram-modal-content {
+    position: relative;
+    width: 90vw;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 10000;
+}
+
+.frequency-labels-modal {
+    position: absolute;
+    left: -40px;
+    top: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #666;
+    font-size: 12px;
+    z-index: 4;
+}
+
+/* Tambahkan cursor pointer ke spectrogram image */
+.spectrogram-image {
+    cursor: pointer;
+}
+
+/* Optional: Tambahkan hover effect */
+.spectrogram-image:hover {
+    opacity: 0.9;
+}
+
+/* Pastikan modal overlay juga memiliki z-index yang sesuai */
+.modal-overlay {
+    z-index: 9999;
+}
+
+/* Modal Spectrogram Styles */
+.modal-spectrogram-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+}
+
+.modal-spectrogram-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 99999;
+}
+
+.modal-spectrogram-container {
+    position: relative;
+    width: 90vw;
+    max-width: 1200px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 100000;
+}
+
+.modal-close-button {
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100001;
+}
+
+.modal-spectrogram-content {
+    position: relative;
+    width: 100%;
+    background: #fff;
+    z-index: 100000;
+}
+
+.spectrogram-image-modal {
+    width: 100%;
+    object-fit: contain;
+    cursor: pointer;
+}
+
+.aspect-square {
+    position: relative;
+    padding-bottom: 100%;
+}
+
+.aspect-square > * {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    left: 0;
+    top: 0;
+}
+

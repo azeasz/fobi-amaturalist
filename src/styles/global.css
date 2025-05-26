@@ -1,0 +1,60 @@
+/* Taxonomy Tree Styles */
+.taxonomy-tree {
+    width: 100%;
+    overflow: auto;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #444;
+}
+
+.taxonomy-tree .node circle {
+    cursor: pointer;
+    fill: #2c2c2c;
+    stroke: #1a73e8;
+    stroke-width: 1.5px;
+}
+
+.taxonomy-tree .node text {
+    font-size: 12px;
+    fill: #e0e0e0;
+}
+
+.taxonomy-tree path.link {
+    fill: none;
+    stroke: #444;
+    stroke-width: 2.0px;
+}
+
+.taxonomy-tree rect {
+    fill: none;
+    pointer-events: all;
+}
+
+.taxonomy-tree pre {
+    font-size: 18px;
+    color: #e0e0e0;
+}
+
+.taxonomy-tree .string, 
+.taxonomy-tree .regexp {
+    color: #ff79c6;
+}
+
+.taxonomy-tree .keyword {
+    color: #1a73e8;
+}
+
+.taxonomy-tree .comment {
+    color: #6c7280;
+    font-style: oblique;
+}
+
+.taxonomy-tree .number {
+    color: #bd93f9;
+}
+
+.taxonomy-tree .class, 
+.taxonomy-tree .special {
+    color: #4ec9b0;
+} 

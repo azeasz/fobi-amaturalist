@@ -1,0 +1,141 @@
+/* DrawingTools.css */
+/* Styling untuk tema gelap pada leaflet-geoman */
+
+/* Background dan border untuk kontrol geoman */
+.leaflet-pm-toolbar {
+  background-color: transparent;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-actions-container {
+  background-color: #1e1e1e;
+}
+
+/* Button container styling */
+.leaflet-pm-toolbar .leaflet-pm-actions {
+  background-color: #1e1e1e;
+  border-radius: 4px;
+  border: 1px solid #444;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Button styling di sidebar tools geoman */
+.leaflet-pm-toolbar .leaflet-pm-action {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border-bottom: 1px solid #444;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-action:hover {
+  background-color: #2c2c2c;
+}
+
+/* Icon di button geoman */
+.leaflet-pm-toolbar .control-icon {
+  color: #e0e0e0;
+  fill: #e0e0e0;
+}
+
+/* Tombol geoman utama */
+.leaflet-pm-toolbar .leaflet-pm-icon-toolbar {
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-toolbar:hover {
+  background-color: #2c2c2c;
+}
+
+/* Tombol drawing aktif */
+.leaflet-pm-toolbar .active {
+  background-color: #1a73e8;
+}
+
+.leaflet-pm-toolbar .active:hover {
+  background-color: #0d47a1;
+}
+
+/* Tombol submenu geoman */
+.leaflet-pm-toolbar .leaflet-buttons-control-button {
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+}
+
+.leaflet-pm-toolbar .leaflet-buttons-control-button:hover {
+  background-color: #2c2c2c;
+}
+
+/* Tooltip saat menggambar */
+.leaflet-pm-tooltip {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  padding: 5px 10px;
+}
+
+/* Vertices (titik) saat mengedit */
+.marker-icon, .leaflet-pm-draggable {
+  border-color: #1a73e8 !important;
+  background-color: #2c2c2c !important;
+}
+
+/* Marker untuk edit vertices */
+.leaflet-marker-icon {
+  border-color: #1a73e8;
+  background-color: #2c2c2c;
+}
+
+/* Style untuk layer yang sedang diedit */
+.leaflet-pm-draggable {
+  stroke: #1a73e8 !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: 4 !important;
+}
+
+/* Middle marker untuk menambah titik */
+.leaflet-pm-ghost-marker {
+  background-color: #1a73e8 !important;
+}
+
+/* Tombol delete */
+.leaflet-pm-toolbar .leaflet-pm-icon-delete {
+  background-color: #1e1e1e;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-delete.active {
+  background-color: #e53935;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-delete.active:hover {
+  background-color: #c62828;
+}
+
+/* Layer yang akan dihapus */
+.leaflet-pm-cursor-disabled {
+  cursor: not-allowed;
+}
+
+/* Garis pembantu saat menggambar */
+.leaflet-pm-helper-path {
+  stroke: #1a73e8 !important;
+  stroke-width: 2px !important;
+  opacity: 0.7 !important;
+  stroke-dasharray: 5, 5 !important;
+}
+
+/* Style saat hover di atas shape */
+.leaflet-pm-hover {
+  fill-opacity: 0.4 !important;
+}
+
+/* Marker vertices untuk beberapa shape */
+.vertex-marker {
+  border-color: #1a73e8 !important;
+  background-color: #2c2c2c !important;
+}
+
+.middle-marker {
+  background-color: #1a73e8 !important;
+} 

@@ -1,0 +1,45 @@
+.tree-view-container {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+  
+  .tree-node {
+    margin: 4px 0;
+  }
+  
+  .node-content {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  
+  .node-content:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .node-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .count-badge {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 4px;
+  }
+  
+  .children {
+    margin-left: 16px;
+    border-left: 1px dashed #ccc;
+    padding-left: 8px;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+  }

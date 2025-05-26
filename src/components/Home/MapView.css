@@ -1,0 +1,347 @@
+.map-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 50px); /* Sesuaikan tinggi dengan mengurangi tinggi StatsBar */
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.map-view {
+  flex: 1;
+  width: 100%;
+}
+
+.view-buttons {
+  position: absolute;
+  top: 10px;
+  right: 10px; /* Pindahkan ke kanan */
+  display: flex;
+  gap: 10px;
+}
+
+.view-buttons button {
+  background-color: rgba(30, 30, 30, 0.9);
+  color: #e0e0e0;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.3s;
+}
+
+.view-buttons button:hover {
+  background-color: rgba(40, 40, 40, 1);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  padding: 10px;
+  box-sizing: border-box;
+  position: relative;
+  border-left: 1px solid #333;
+}
+
+/* Style untuk area scroll */
+.sidebar > div:last-child {
+  position: relative;
+  overflow-y: scroll !important; /* Force scroll selalu muncul */
+  -webkit-overflow-scrolling: touch;
+  min-height: 100px;
+}
+
+/* Style untuk scrollbar */
+.sidebar > div:last-child::-webkit-scrollbar {
+  width: 8px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.sidebar > div:last-child::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.sidebar > div:last-child::-webkit-scrollbar-thumb {
+  background-color: rgba(26, 115, 232, 0.5);
+  border-radius: 4px;
+}
+
+/* Style untuk memastikan dropdown muncul di atas konten lain */
+.sidebar .observation-card {
+  position: relative;
+  background-color: #2c2c2c;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.sidebar .dropdown-menu {
+  position: absolute;
+  z-index: 20;
+  background-color: #2c2c2c;
+  border: 1px solid #444;
+}
+
+/* Style untuk expanded content */
+.sidebar .expanded-content {
+  position: relative;
+  z-index: 10;
+  background-color: #2c2c2c;
+}
+
+.leaflet-control {
+  z-index: 1 !important;
+}
+
+
+.leaflet-control-attribution {
+  display: none;
+}
+
+.leaflet-control-attribution,
+.esri-truncated-attribution {
+  display: none !important;
+}
+.leaflet-control-zoom {
+  z-index: 1;
+}
+
+.leaflet-control-zoom a {
+  background-color: #1e1e1e !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #2c2c2c !important;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    height: 100vh;
+    width: 100%;
+    background-color: #1e1e1e;
+  }
+  /* src/components/Home/MapView.css */
+  /* .leaflet-control {
+    z-index: 1;
+    display: none;
+  } */
+    .leaflet-control-container {
+    z-index: 10;
+  }
+  
+  .leaflet-control-zoom leaflet-bar leaflet-control {
+    z-index: 10;
+  }
+  .info-control-container {
+    position: relative;
+    display: none;
+  }
+  
+  
+}
+
+.info-control-container {
+  position: relative;
+}
+
+.leaflet-control-info .info-button {
+  width: 30px;
+  height: 30px;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 2px solid rgba(68, 68, 68, 0.6);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+}
+
+.leaflet-control-info .info-button:hover {
+  background-color: #2c2c2c;
+}
+
+.custom-info-icon {
+  width: 16px;
+  height: 16px;
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="%23e0e0e0" d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7-24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  display: inline-block;
+}
+
+.tooltip-container {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(30, 30, 30, 0.95);
+  color: #e0e0e0;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  z-index: 1000;
+  text-align: left;
+}
+
+.tooltip-container.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-container.clicked {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-container::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid rgba(30, 30, 30, 0.95);
+}
+
+.tooltip-container p {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.tooltip-container a {
+  color: #1a73e8;
+  text-decoration: none;
+}
+
+.tooltip-container a:hover {
+  text-decoration: underline;
+}
+
+.leaflet-container {
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #121212 !important;
+}
+
+/* Tambahkan styles untuk virtualized list */
+.sidebar .react-window-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 115, 232, 0.5) transparent;
+}
+
+.sidebar .react-window-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar .react-window-list::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+.sidebar .react-window-list::-webkit-scrollbar-thumb {
+  background-color: rgba(26, 115, 232, 0.5);
+  border-radius: 3px;
+}
+
+/* Pastikan container virtualisasi memiliki tinggi yang tepat */
+.sidebar .auto-sizer {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Pastikan konten selalu memiliki tinggi minimum */
+.sidebar .space-y-3 {
+  min-height: calc(100vh - 100px);
+}
+
+/* Tambahkan style untuk LayersControl */
+.leaflet-control-layers {
+  background-color: #1e1e1e !important;
+  border-color: #444 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-control-layers-toggle {
+  background-color: #1e1e1e !important;
+  border-radius: 4px !important;
+}
+
+.leaflet-control-layers-expanded {
+  color: #e0e0e0 !important;
+  padding: 10px !important;
+}
+
+.leaflet-control-layers-separator {
+  border-top-color: #444 !important;
+}
+
+.leaflet-control-layers label {
+  margin-bottom: 5px !important;
+}
+
+.leaflet-control-layers input {
+  margin-right: 6px !important;
+}
+
+.leaflet-control-scale {
+  color: #e0e0e0 !important;
+}
+
+.leaflet-control-scale-line {
+  border-color: #e0e0e0 !important;
+  color: #e0e0e0 !important;
+  background-color: rgba(30, 30, 30, 0.7) !important;
+  border-top: none !important;
+}
+
+/* Style untuk loading indicator pada peta */
+.map-loading {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(30, 30, 30, 0.8);
+  color: #e0e0e0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* CSS yang menyebabkan berat sudah dinonaktifkan untuk performa lebih baik
+.high-data-grid {
+  filter: drop-shadow(0 0 4px rgba(26, 115, 232, 0.8)) !important;
+  transition: filter 0.2s ease-out !important;
+}
+
+.leaflet-pane .leaflet-overlay-pane svg path.high-data-grid {
+  stroke: #1a73e8 !important;
+  stroke-width: 1.5 !important;
+  filter: drop-shadow(0 0 4px rgba(26, 115, 232, 0.8)) !important;
+}
+
+.high-data-grid:hover,
+.leaflet-pane .leaflet-overlay-pane svg path.high-data-grid:hover {
+  filter: drop-shadow(0 0 8px rgba(26, 115, 232, 1)) !important;
+}
+*/

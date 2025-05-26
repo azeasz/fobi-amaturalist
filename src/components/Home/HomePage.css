@@ -1,0 +1,32 @@
+.view-icons {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+  
+  .view-icons button {
+    margin: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+  }
+  
+  @media (max-width: 768px) {
+    .view-icons button {
+      font-size: 0.9em;
+      padding: 8px 12px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .view-icons {
+      flex-direction: column;
+      align-items: center;
+    }
+  
+    .view-icons button {
+      width: 100%;
+      max-width: 200px;
+    }
+  }

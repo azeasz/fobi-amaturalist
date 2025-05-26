@@ -1,0 +1,340 @@
+/* Container utama */
+.media-viewer-container {
+    width: 100%;
+    aspect-ratio: 16/9;
+    min-height: 300px;
+    max-height: 500px;
+    margin: 0 auto;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* Style untuk mode fullscreen */
+:fullscreen .media-viewer-container {
+    width: 100vw;
+    height: 100vh;
+    max-height: none;
+    background: rgba(0, 0, 0, 0.9);
+}
+
+:fullscreen .image-container {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:fullscreen .gallery-image {
+    max-height: 90vh;
+    max-width: 90vw;
+    object-fit: contain;
+}
+
+/* Image Gallery Custom Styling */
+.custom-image-gallery {
+    height: 100% !important;
+}
+
+.image-gallery-content {
+    height: 100%;
+}
+
+.image-gallery-slide-wrapper {
+    height: 100%;
+}
+
+.image-gallery-swipe {
+    height: 100%;
+}
+
+.image-gallery-slides {
+    height: 100%;
+}
+
+.image-gallery-slide {
+    height: 100%;
+}
+
+.image-gallery-image {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    background: #f8f9fa;
+}
+
+/* Image Container */
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.license-overlay {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Audio Player Styling */
+.audio-player-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    background: #1a1a1a;
+}
+
+.audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.play-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.play-button:hover {
+    background: #0056b3;
+    transform: scale(1.05);
+}
+
+.audio-progress {
+    flex: 1;
+}
+
+.progress-bar {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #007bff;
+    transform-origin: left;
+    transition: transform 0.1s linear;
+}
+
+.time-display {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+/* Spectrogram Styling */
+.spectrogram-container {
+    margin-top: 15px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+}
+
+.spectrogram-swiper {
+    width: 100%;
+    height: 100%;
+    user-select: none;
+    touch-action: pan-y;
+}
+
+.spectrogram-swiper .swiper-slide {
+    width: auto;
+    height: 100%;
+}
+
+.spectrogram-content {
+    display: flex;
+    align-items: stretch;
+}
+
+.frequency-labels {
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.spectrogram-image {
+    width: auto;
+    height: 200px;
+    object-fit: cover;
+}
+
+.fullscreen-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.fullscreen-button:hover {
+    background: #2563eb;
+}
+
+/* Fullscreen styles */
+.spectrogram-container:fullscreen {
+    background: #000;
+    padding: 20px;
+}
+
+.spectrogram-container:fullscreen .spectrogram-image {
+    width: auto;
+    height: 100vh;
+    max-width: none;
+}
+
+/* Thumbnail Styling */
+.image-gallery-thumbnails-wrapper {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 0;
+}
+
+.image-gallery-thumbnails {
+    padding: 0 0.5rem;
+}
+
+.image-gallery-thumbnail {
+    width: 60px !important;
+    height: 60px !important;
+    border: 2px solid transparent;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    margin: 0 0.25rem;
+}
+
+.image-gallery-thumbnail.active {
+    border-color: #3b82f6;
+}
+
+.image-gallery-thumbnail:hover {
+    border-color: #93c5fd;
+}
+
+.image-gallery-thumbnail-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Audio Thumbnail */
+.audio-thumbnail {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-thumbnail::after {
+    content: '🎵';
+    font-size: 2rem;
+}
+
+/* Tambahkan smooth scrolling untuk Swiper */
+.swiper-wrapper {
+    transition-timing-function: linear !important;
+}
+
+/* Sembunyikan tombol panah navigasi */
+.image-gallery-left-nav,
+.image-gallery-right-nav {
+    display: none !important;
+}
+
+.audio-thumb-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.audio-thumb-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.audio-icon-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.audio-icon-overlay svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .media-viewer-container {
+        min-height: 250px;
+    }
+
+    .image-gallery-thumbnails-wrapper {
+        display: none;
+    }
+}
+
+/* Tambahkan CSS yang diperlukan jika ada yang belum tercakup di styles di atas */
+
