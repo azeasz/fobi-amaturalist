@@ -1,4 +1,4 @@
-# fobi-amaturalist
+# fobi-amaturalist beta
 
 Frontend built with React and Vite (JSX).
 
