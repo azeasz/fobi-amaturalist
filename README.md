@@ -15,10 +15,10 @@
 
 | Feature              | Status                            |
 |---------------------|-----------------------------------|
-| React               | ✅ JSX. Dynamic. Bos bingung.      |
+| React               | ✅ JSX. Dynamic. Absolute Cinema.      |
 | Vite                | ⚡ Super fast HMR                 |
 | ESLint              | 🧼 Biar ngoding gak barbar         |
-| SWC / Babel         | 🚀 Cepat atau kompatibel, pilihlah |
+| SWC / Babel         | 🚀 Cepat dan kompatbel |
 
 > 💼 *Because nothing screams “modern frontend” like using SWC... on a project with no QA budget.*
 
@@ -32,7 +32,7 @@
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) — pakai Babel, enak buat debugging.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc) — lebih cepat, tapi errornya bisa bikin galau.
 
-> ⚠️ *mumet dikit*
+> ⚠️ *sing garap sigma*
 
 ---
 
