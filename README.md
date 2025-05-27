@@ -27,7 +27,7 @@
 ## 🤖 Tentang Proyek Ini | About This Project
 
 ### 🇮🇩 Bahasa Indonesia
-Template minimalis untuk memulai proyek React dengan Vite. Sudah disetel dengan ESLint biar kodingan gak kayak kode warisan. Ada dua plugin resmi:
+ Project Portal naturalist indonesia, proyek React dengan Vite. Sudah disetel dengan ESLint biar kodingan gak kayak kode warisan. Ada dua plugin resmi:
 
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) — pakai Babel, enak buat debugging.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc) — lebih cepat, tapi errornya bisa bikin galau.
@@ -37,7 +37,8 @@ Template minimalis untuk memulai proyek React dengan Vite. Sudah disetel dengan 
 ---
 
 ### 🇺🇸 English
-A minimalist template to kick off your React + Vite dreams — with ESLint to keep things clean and chaotic-neutral.
+Portal Naturalist Indonesia is a frontend project built with React and Vite.
+It comes pre-configured with ESLint — because clean code matters (especially when you're not the only one maintaining it).
 
 Two plugin options:
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react): uses Babel, solid and mature.
