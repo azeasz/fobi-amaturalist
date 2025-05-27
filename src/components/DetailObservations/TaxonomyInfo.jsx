@@ -41,7 +41,8 @@ const TaxonomyInfo = ({ checklist }) => {
                         className="hover:text-[#1a73e8] hover:underline transition-colors"
                     >
                         <span className="italic">{cleanScientificName(value)}</span>
-                        {commonName && <span className="ml-2">({commonName})</span>}
+                        {commonName && <span className="ml-2 hidden">({commonName})</span>}
+                        {/* hide common name for now */}
                     </a>
                 </div>
             );
@@ -55,7 +56,8 @@ const TaxonomyInfo = ({ checklist }) => {
                     title="Halaman taksonomi sedang dalam pengembangan"
                 >
                     {cleanScientificName(value)}
-                    {commonName && <span className="ml-2">({commonName})</span>}
+                    {commonName && <span className="ml-2 hidden">({commonName})</span>}
+                    {/* hide common name for now */}
                 </span>
             </div>
         );

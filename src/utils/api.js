@@ -24,8 +24,29 @@ const handleResponse = async (response) => {
       throw error;
     }
     
-    const error = await response.json();
-    throw new Error(error.message || 'Terjadi kesalahan');
+    // Tangani error 409 (Conflict) secara khusus
+    if (response.status === 409) {
+      const errorData = await response.json();
+      const error = new Error(errorData.message || 'Terjadi konflik data');
+      error.status = 409;
+      error.data = errorData;
+      error.response = { status: 409, data: errorData };
+      throw error;
+    }
+    
+    // Untuk error lainnya
+    try {
+      const errorData = await response.json();
+      const error = new Error(errorData.message || 'Terjadi kesalahan');
+      error.status = response.status;
+      error.data = errorData;
+      throw error;
+    } catch (e) {
+      // Jika tidak bisa parse JSON
+      const error = new Error('Terjadi kesalahan pada server');
+      error.status = response.status;
+      throw error;
+    }
   }
   return response;
 };

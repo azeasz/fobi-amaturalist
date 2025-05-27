@@ -8,12 +8,13 @@ import TabPanel from './TabPanel';
 import TaxonomyHeader from './TaxonomyHeader';
 import TaxonomyInfo from './TaxonomyInfo';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faFlag, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faMapMarkerAlt, faFlag, faTimes, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { apiFetch } from '../../utils/api';
 import { Dialog, Transition } from '@headlessui/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TreeView from 'react-treeview';
 import "react-treeview/react-treeview.css";
+import { toast } from 'react-hot-toast';
 
 // Fungsi helper untuk menentukan source dan membersihkan ID
 const getSourceAndCleanId = (id) => {
@@ -156,6 +157,83 @@ const FlagModal = React.memo(({
         </Dialog>
     </Transition>
 ));
+
+// Komponen modal konfirmasi untuk Kingdom Quorum
+const KingdomQuorumModal = ({ isOpen, closeModal, message, onConfirm, onCancel }) => {
+    const kingdomMatch = message?.match(/Kingdom telah ditetapkan berdasarkan kesepakatan quorum: ([A-Za-z]+)/);
+    const existingKingdom = kingdomMatch ? kingdomMatch[1] : 'Unknown';
+    
+    const newKingdomMatch = message?.match(/Usulan ([A-Za-z]+) tidak dapat diterima/);
+    const newKingdom = newKingdomMatch ? newKingdomMatch[1] : 'berbeda';
+
+    return (
+        <Transition appear show={isOpen} as={Fragment}>
+            <Dialog as="div" className="relative z-[9999]" onClose={closeModal}>
+                <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                >
+                    <div className="fixed inset-0 bg-black bg-opacity-50" />
+                </Transition.Child>
+
+                <div className="fixed inset-0 overflow-y-auto">
+                    <div className="flex min-h-full items-center justify-center p-4">
+                        <Transition.Child
+                            as={Fragment}
+                            enter="ease-out duration-300"
+                            enterFrom="opacity-0 scale-95"
+                            enterTo="opacity-100 scale-100"
+                            leave="ease-in duration-200"
+                            leaveFrom="opacity-100 scale-100"
+                            leaveTo="opacity-0 scale-95"
+                        >
+                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-[#1e1e1e] p-6 text-left align-middle shadow-xl transition-all border border-[#444]">
+                                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-white flex items-center gap-2">
+                                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-500" />
+                                    <span>Identifikasi Ditolak</span>
+                                </Dialog.Title>
+                                
+                                <div className="mt-4">
+                                    <p className="text-sm text-gray-300">
+                                        {message || `Usulan Kingdom ${newKingdom} tidak dapat diterima karena Kingdom telah ditetapkan berdasarkan kesepakatan quorum: ${existingKingdom}`}
+                                    </p>
+                                </div>
+
+                                <div className="mt-6">
+                                    <p className="text-sm text-gray-400">
+                                        Jika Anda tetap ingin mengirimkan identifikasi ini, identifikasi akan otomatis ditandai sebagai ditarik.
+                                    </p>
+                                </div>
+
+                                <div className="mt-6 flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        className="inline-flex justify-center rounded-md border border-transparent bg-gray-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-gray-600 focus:outline-none"
+                                        onClick={onCancel}
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="inline-flex justify-center rounded-md border border-transparent bg-blue-900 px-4 py-2 text-sm font-medium text-blue-100 hover:bg-blue-800 focus:outline-none"
+                                        onClick={onConfirm}
+                                    >
+                                        Lanjut
+                                    </button>
+                                </div>
+                            </Dialog.Panel>
+                        </Transition.Child>
+                    </div>
+                </div>
+            </Dialog>
+        </Transition>
+    );
+};
 
 function ChecklistDetail({ id: propId, isModal = false, onClose = null }) {
     const { id: paramId } = useParams();
@@ -313,6 +391,11 @@ function ChecklistDetail({ id: propId, isModal = false, onClose = null }) {
     const [isSubmittingFlag, setIsSubmittingFlag] = useState(false);
     const [media, setMedia] = useState({ images: [], sounds: [] });
 
+    // Tambahkan state untuk modal konfirmasi Kingdom Quorum
+    const [showKingdomQuorumModal, setShowKingdomQuorumModal] = useState(false);
+    const [kingdomQuorumMessage, setKingdomQuorumMessage] = useState('');
+    const [pendingIdentificationData, setPendingIdentificationData] = useState(null);
+
     const { user } = useUser();
 
     // Update state dari data query
@@ -405,18 +488,173 @@ function ChecklistDetail({ id: propId, isModal = false, onClose = null }) {
     };
 
     const handleIdentificationSubmit = async (e, photo) => {
-        e.preventDefault();
-        const formData = new FormData();
-        formData.append('taxon_id', selectedTaxon.id);
-        formData.append('identification_level', selectedTaxon.taxon_rank);
-        if (identificationForm.comment) {
-            formData.append('comment', identificationForm.comment);
-        }
-        if (photo) {
-            formData.append('photo', photo);
-        }
+        try {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('taxon_id', selectedTaxon.id);
+            formData.append('identification_level', selectedTaxon.taxon_rank);
+            if (identificationForm.comment) {
+                formData.append('comment', identificationForm.comment);
+            }
+            if (photo) {
+                formData.append('photo', photo);
+            }
 
-        await addIdentificationMutation.mutateAsync(formData);
+            // Ganti penggunaan mutasi dengan fetch langsung agar bisa menangkap error dengan lebih baik
+            const response = await apiFetch(`/observations/${id}/identifications?source=${source}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Segera ambil data terbaru tanpa menunggu invalidasi query
+                try {
+                    // Ambil data checklist terbaru
+                    const checklistResponse = await apiFetch(`/observations/${cleanId}?source=${source}`);
+                    const checklistData = await checklistResponse.json();
+                    if (checklistData.success) {
+                        setChecklist(checklistData.data.checklist);
+                        setIdentifications(checklistData.data.identifications || []);
+                        setMedia(checklistData.data.media || { images: [], sounds: [] });
+                        if (checklistData.data.quality_assessment) {
+                            setQualityAssessment(checklistData.data.quality_assessment);
+                        }
+                    }
+                } catch (fetchError) {
+                    console.error('Error fetching updated data:', fetchError);
+                    // Tetap invalidasi query sebagai fallback
+                    queryClient.invalidateQueries(['checklist', id]);
+                }
+                
+                // Reset form
+                setIdentificationForm({
+                    taxon_id: '',
+                    identification_level: 'species',
+                    comment: ''
+                });
+                setSelectedTaxon(null);
+                
+                toast.success('Identifikasi berhasil ditambahkan', {
+                    position: "top-center",
+                    autoClose: 3000,
+                });
+            } else {
+                throw new Error(data.message || 'Gagal menambahkan identifikasi');
+            }
+        } catch (error) {
+            console.error('Error submitting identification:', error);
+            
+            // Periksa apakah error adalah konflik kingdom quorum
+            if (error.status === 409 && error.data?.code === 'KINGDOM_QUORUM_LOCKED') {
+                // Simpan pesan error dan tampilkan modal konfirmasi
+                setKingdomQuorumMessage(error.data.message);
+                
+                // Simpan data identifikasi yang akan disubmit
+                setPendingIdentificationData({
+                    taxon_id: selectedTaxon.id,
+                    identification_level: selectedTaxon.taxon_rank,
+                    comment: identificationForm.comment,
+                    photo: photo,
+                    force_submit: true
+                });
+                
+                // Tampilkan modal konfirmasi
+                setShowKingdomQuorumModal(true);
+            } else {
+                toast.error(error.message || 'Terjadi kesalahan saat menambahkan identifikasi', {
+                    position: "top-center",
+                    autoClose: 5000,
+                });
+            }
+        }
+    };
+
+    // Fungsi untuk melanjutkan submit identifikasi meskipun Kingdom berbeda
+    const handleForceSubmitIdentification = async () => {
+        try {
+            if (!pendingIdentificationData) return;
+            
+            const formData = new FormData();
+            formData.append('taxon_id', pendingIdentificationData.taxon_id);
+            formData.append('identification_level', pendingIdentificationData.identification_level);
+            
+            if (pendingIdentificationData.comment) {
+                formData.append('comment', pendingIdentificationData.comment);
+            }
+            
+            if (pendingIdentificationData.photo) {
+                formData.append('photo', pendingIdentificationData.photo);
+            }
+            
+            // Tambahkan flag untuk memaksa submit meskipun Kingdom berbeda
+            // Gunakan string "1" yang akan dikonversi menjadi boolean true di backend
+            formData.append('force_submit', "1");
+            
+            const response = await apiFetch(`/observations/${id}/identifications?source=${source}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Segera ambil data terbaru tanpa menunggu invalidasi query
+                try {
+                    // Ambil data checklist terbaru
+                    const checklistResponse = await apiFetch(`/observations/${cleanId}?source=${source}`);
+                    const checklistData = await checklistResponse.json();
+                    if (checklistData.success) {
+                        setChecklist(checklistData.data.checklist);
+                        setIdentifications(checklistData.data.identifications || []);
+                        setMedia(checklistData.data.media || { images: [], sounds: [] });
+                        if (checklistData.data.quality_assessment) {
+                            setQualityAssessment(checklistData.data.quality_assessment);
+                        }
+                    }
+                } catch (fetchError) {
+                    console.error('Error fetching updated data:', fetchError);
+                    // Tetap invalidasi query sebagai fallback
+                    queryClient.invalidateQueries(['checklist', cleanId, source]);
+                }
+                
+                // Reset form
+                setIdentificationForm({
+                    taxon_id: '',
+                    identification_level: 'species',
+                    comment: ''
+                });
+                setSelectedTaxon(null);
+                
+                // Tutup modal
+                setShowKingdomQuorumModal(false);
+                setPendingIdentificationData(null);
+                
+                // Tampilkan notifikasi sukses
+                toast.success(data.message || 'Identifikasi berhasil ditambahkan tetapi ditandai sebagai ditarik', {
+                    position: "top-center",
+                    autoClose: 3000,
+                });
+            } else {
+                throw new Error(data.message || 'Gagal menambahkan identifikasi');
+            }
+        } catch (error) {
+            console.error('Error force submitting identification:', error);
+            toast.error(error.message || 'Gagal menambahkan identifikasi', {
+                position: "top-center",
+                autoClose: 5000,
+            });
+            
+            // Tutup modal jika terjadi error
+            setShowKingdomQuorumModal(false);
+        }
+    };
+
+    // Fungsi untuk membatalkan submit identifikasi
+    const handleCancelIdentification = () => {
+        setShowKingdomQuorumModal(false);
+        setPendingIdentificationData(null);
     };
 
     const handleLocationVerify = async (isAccurate, comment = '') => {
@@ -1125,6 +1363,15 @@ const handleCancelAgreement = async (identificationId) => {
                 setFlagForm={setFlagForm}
                 handleFlagSubmit={handleFlagSubmit}
                 isSubmittingFlag={isSubmittingFlag}
+            />
+
+            {/* Modal konfirmasi Kingdom Quorum */}
+            <KingdomQuorumModal
+                isOpen={showKingdomQuorumModal}
+                closeModal={handleCancelIdentification}
+                message={kingdomQuorumMessage}
+                onConfirm={handleForceSubmitIdentification}
+                onCancel={handleCancelIdentification}
             />
         </div>
     );

@@ -440,7 +440,7 @@ const Login = () => {
     setEmailVerificationRequired(false);
 
     try {
-      console.log('Attempting login with:', emailOrUsername);
+      // console.log('Attempting login with:', emailOrUsername);
       const response = await apiFetch('/login', {
         method: 'POST',
         headers: {

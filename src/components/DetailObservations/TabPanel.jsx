@@ -460,6 +460,11 @@ function TabPanel({
     }, [navigate]);
 
     const getTaxonomyLevel = (taxon) => {
+        // Kasus khusus untuk division/phylum
+        if (!taxon.phylum && taxon.division) {
+            return `${taxon.division} (Phylum)`;
+        }
+
         // Daftar lengkap level taksonomi dari yang paling spesifik ke yang paling umum
         const taxonomyLevels = [
             'subform',
@@ -546,6 +551,17 @@ function TabPanel({
             'domain'
         ];
         
+        // Pra-proses identifikasi untuk menangani kasus khusus division/phylum
+        const processedIdentifications = identifications.map(ident => {
+            const processedIdent = {...ident};
+            // Jika phylum kosong tapi division ada, gunakan division sebagai phylum
+            if (!processedIdent.phylum && processedIdent.division) {
+                processedIdent.phylum = processedIdent.division;
+                processedIdent.cname_phylum = processedIdent.cname_division;
+            }
+            return processedIdent;
+        });
+        
         // Mulai dari level taksonomi paling rendah (yang lebih spesifik)
         for (const level of taxonomyLevels) {
             // Lewati level species, kita mulai dari genus
@@ -554,7 +570,7 @@ function TabPanel({
             }
             
             // Ambil nilai dari takson pertama untuk level ini sebagai referensi
-            const referenceValue = identifications[0][level];
+            const referenceValue = processedIdentifications[0][level];
             
             // Jika referensi tidak ada untuk level ini, lanjut ke level yang lebih tinggi
             if (!referenceValue) {
@@ -562,7 +578,7 @@ function TabPanel({
             }
             
             // Periksa apakah semua takson memiliki nilai yang sama untuk level ini
-            const allSame = identifications.every(ident => 
+            const allSame = processedIdentifications.every(ident => 
                 ident[level] && ident[level] === referenceValue
             );
             
@@ -573,7 +589,7 @@ function TabPanel({
                 
                 // Buat objek taksonomi induk dengan level yang ditemukan
                 const commonAncestor = {
-                    ...identifications[0], // Salin properti dari takson pertama
+                    ...processedIdentifications[0], // Salin properti dari takson pertama
                 };
                 
                 // Hapus semua level yang lebih rendah dari level yang ditemukan
@@ -590,7 +606,7 @@ function TabPanel({
                 commonAncestor.taxonomicName = referenceValue;
                 
                 // Tambahkan daftar taksa yang berbeda di bawah taksonomi induk ini
-                commonAncestor.differentSpecies = identifications.map(ident => ({
+                commonAncestor.differentSpecies = processedIdentifications.map(ident => ({
                     id: ident.id,
                     species: ident.species,
                     scientific_name: ident.scientific_name || ident.species,
@@ -669,6 +685,18 @@ function TabPanel({
             );
         }
         
+        // Kasus khusus untuk division/phylum
+        if (!taxon.phylum && taxon.division) {
+            if (taxon.cname_division) {
+                return (
+                    <React.Fragment>
+                        {taxon.division} <span className="text-xs text-gray-400 font-normal">({taxon.cname_division})</span>
+                    </React.Fragment>
+                );
+            }
+            return taxon.division;
+        }
+        
         // Level taksa dari paling rendah ke paling tinggi
         const levels = [
             { key: 'subform', commonKey: 'cname_subform' },
@@ -707,11 +735,15 @@ function TabPanel({
         // Cari level taksa terendah yang tersedia
         for (const { key, commonKey } of levels) {
             if (taxon[key]) {
+                // Tentukan apakah perlu italic berdasarkan level taksonomi
+                const needsItalic = ['family', 'genus', 'subgenus', 'species', 'subspecies', 'variety', 'form', 'subform'].includes(key);
+                
                 // Tampilkan dengan common name jika tersedia
                 if (taxon[commonKey]) {
                     return (
                         <React.Fragment>
-                            {taxon[key]} <span className="text-xs text-gray-400 font-normal">({taxon[commonKey]})</span>
+                            <span className={needsItalic ? 'italic' : ''}>{taxon[key]}</span> 
+                            <span className="text-xs text-gray-400 font-normal ml-2">({taxon[commonKey]})</span>
                         </React.Fragment>
                     );
                 }
@@ -719,24 +751,29 @@ function TabPanel({
                 else if (key === 'species' && taxon.common_name) {
                     return (
                         <React.Fragment>
-                            {taxon[key]} <span className="text-xs text-gray-400 font-normal">({taxon.common_name})</span>
+                            <span className="italic">{taxon[key]}</span> 
+                            <span className="text-xs text-gray-400 font-normal ml-2">({taxon.common_name})</span>
                         </React.Fragment>
                     );
                 }
-                return taxon[key];
+                return <span className={needsItalic ? 'italic' : ''}>{taxon[key]}</span>;
             }
         }
 
         // Jika tidak ada level taksa yang tersedia, gunakan scientific_name
         if (taxon.scientific_name) {
+            // Tentukan apakah perlu italic berdasarkan format nama ilmiah
+            const needsItalic = taxon.scientific_name.split(' ').length > 1;
+            
             if (taxon.common_name) {
                 return (
                     <React.Fragment>
-                        {taxon.scientific_name} <span className="text-xs text-gray-400 font-normal">({taxon.common_name})</span>
+                        <span className={needsItalic ? 'italic' : ''}>{taxon.scientific_name}</span> 
+                        <span className="text-xs text-gray-400 font-normal ml-2">({taxon.common_name})</span>
                     </React.Fragment>
                 );
             }
-            return taxon.scientific_name;
+            return <span className={needsItalic ? 'italic' : ''}>{taxon.scientific_name}</span>;
         }
 
         return 'Nama tidak tersedia';
