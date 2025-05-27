@@ -6,7 +6,7 @@
 <div align="center">
   <img src="https://media.giphy.com/media/3o7abB06u9bNzA8lu8/giphy.gif" width="300" />
   <br />
-  <strong>Now in two languages: English & Bahasa Indonesia. Because localization is important. Unlike fair compensation.</strong>
+  <strong>Bagi udud</strong>
 </div>
 
 ---
