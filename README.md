@@ -32,7 +32,7 @@ Template minimalis untuk memulai proyek React dengan Vite. Sudah disetel dengan 
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) — pakai Babel, enak buat debugging.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc) — lebih cepat, tapi errornya bisa bikin galau.
 
-> ⚠️ *Ya, kita pakai teknologi kekinian. Tapi tenang, gaji tetap jadul. Jangan takut naik pangkat, takut naik bensin.*
+> ⚠️ *mumet dikit*
 
 ---
 
@@ -43,7 +43,7 @@ Two plugin options:
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react): uses Babel, solid and mature.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc): blazingly fast, slightly cursed on errors.
 
-> 👀 *Modern stack, startup vibes, intern-level salary. You love to see it.*
+> 👀 *Modern stack, absolute cinema, legendary-level salary. You love to see it.*
 
 ---
 
