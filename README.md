@@ -6,7 +6,7 @@
 <div align="center">
   <img src="https://media.giphy.com/media/3o7abB06u9bNzA8lu8/giphy.gif" width="300" />
   <br />
-  <strong>Disaat Djarum Super disedot, my brain will fly high till kejedot</strong>
+  <strong>Technologia</strong>
 </div>
 
 ---
