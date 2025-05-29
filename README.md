@@ -44,7 +44,7 @@ Two plugin options:
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react): uses Babel, solid and mature.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc): blazingly fast, slightly cursed on errors.
 
-> 👀 *Modern stack, absolute cinema, legendary-level salary. You love to see it.*
+> 👀 *Modern stack, absolute cinema, nature observations. You'll love to see it.*
 
 ---
 
