@@ -32,7 +32,7 @@
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) — pakai Babel, enak buat debugging.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc) — lebih cepat, tapi errornya bisa bikin tantrum.
 
-> ⚠️ *sing garap sigma*
+> ⚠️ *beta version*
 
 ---
 
