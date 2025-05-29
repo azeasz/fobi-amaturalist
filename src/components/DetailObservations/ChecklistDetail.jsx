@@ -1233,7 +1233,7 @@ const handleCancelAgreement = async (identificationId) => {
                     <div className="flex justify-between items-start gap-4">
                         <div className="space-y-2">
                             <h1 className="text-3xl font-bold text-white">
-                                <TaxonomyHeader checklist={checklist} />
+                                <TaxonomyHeader checklist={checklist} identifications={identifications} />
                             </h1>
                             <div className="text-gray-300 text-sm space-y-1">
                                 <TaxonomyInfo checklist={checklist} />
