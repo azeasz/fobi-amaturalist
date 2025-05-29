@@ -1,4 +1,4 @@
-# 🚀 fobi-amaturalist BETA
+# 🚀 fobi-amaturalist BETA (frontend)
 
 > ⚛️ Vite + React + ESLint.  
 > ⚡ Cutting-edge frontend setup. Just ignore the payroll irony.
@@ -32,7 +32,7 @@
 - [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) — pakai Babel, enak buat debugging.
 - [`@vitejs/plugin-react-swc`](https://github.com/vitejs/vite-plugin-react-swc) — lebih cepat, tapi errornya bisa bikin tantrum.
 
-> ⚠️ *beta version*
+> ⚠️ *beta version, backend repo is private rn*
 
 ---
 
