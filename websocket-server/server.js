@@ -12,16 +12,16 @@ app.use(cors({
 
 const server = http.createServer(app);
 
-// Buat WebSocket server dengan cara yang lebih sederhana
+
 const wss = new WebSocket.Server({ 
-    server: server,  // Langsung gunakan server HTTP
-    path: '/ws'      // Tentukan path
+    server: server,  
+    path: '/ws'      
 });
 
-// Simpan koneksi
+// Simpan koneksi cok
 const connections = new Map();
 
-// Log ketika server mulai mendengarkan
+// Log
 wss.on('listening', () => {
     console.log('WebSocket server is listening');
 });
@@ -133,7 +133,7 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;  // Gunakan port 3000
+const PORT = process.env.PORT || 3000; 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 }); 
