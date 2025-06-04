@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEdit, faSpinner, faMapMarkerAlt, faCalendar, faLayerGroup, faMicroscope, faBug, faLeaf, faPaw, faSitemap } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEdit, faSpinner, faMapMarkerAlt, faCalendar, faLayerGroup, faMicroscope, faBug, faLeaf, faPaw, faSitemap, faMosquito, faFeather } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import defaultPlaceholder from '../../assets/icon/FOBI.png';
+import defaultPlaceholderKupunesia from '../../assets/icon/kupnes.png';
+import defaultPlaceholderBurungnesia from '../../assets/icon/icon.png';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -80,8 +82,18 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
       setLoading(true);
       setError(null);
       
+      // Cek apakah ID memiliki format khusus
+      let fetchId = id;
+      if (observation && observation.source) {
+        if (observation.source === 'burungnesia') {
+          fetchId = `BN${id}`;
+        } else if (observation.source === 'kupunesia') {
+          fetchId = `KN${id}`;
+        }
+      }
+      
       const token = localStorage.getItem('jwt_token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/user-observations/${id}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/user-observations/${fetchId}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -106,6 +118,29 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
       setError('Gagal terhubung ke server. Silakan coba lagi nanti.');
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Fungsi untuk mendapatkan label dan warna sumber data
+  const getSourceInfo = (source) => {
+    if (source === 'burungnesia') {
+      return { 
+        label: 'Burungnesia', 
+        color: 'bg-pink-800', 
+        icon: faFeather 
+      };
+    } else if (source === 'kupunesia') {
+      return { 
+        label: 'Kupunesia', 
+        color: 'bg-purple-800', 
+        icon: faMosquito 
+      };
+    } else {
+      return { 
+        label: 'Amaturalist', 
+        color: 'bg-blue-800', 
+        icon: faLeaf 
+      };
     }
   };
   
@@ -179,7 +214,13 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                           className="max-w-full max-h-full object-contain"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = defaultPlaceholder;
+                            if (details.source === 'kupunesia') {
+                              e.target.src = defaultPlaceholderKupunesia;
+                            } else if (details.source === 'burungnesia') {
+                              e.target.src = defaultPlaceholderBurungnesia;
+                            } else {
+                              e.target.src = defaultPlaceholder;
+                            }
                             console.error('Error loading image:', details.medias[activeMediaIndex].full_url);
                           }}
                         />
@@ -216,7 +257,13 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   e.target.onerror = null;
-                                  e.target.src = defaultPlaceholder;
+                                  if (details.source === 'kupunesia') {
+                                    e.target.src = defaultPlaceholderKupunesia;
+                                  } else if (details.source === 'burungnesia') {
+                                    e.target.src = defaultPlaceholderBurungnesia;
+                                  } else {
+                                    e.target.src = defaultPlaceholder;
+                                  }
                                   console.error('Error loading thumbnail:', media.full_url);
                                 }}
                               />
@@ -230,7 +277,7 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                   <div className="h-[300px] bg-[#2c2c2c] rounded-lg flex items-center justify-center">
                     <div className="text-center text-[#aaa]">
                       <img 
-                        src={defaultPlaceholder}
+                        src={details.source === 'kupunesia' ? defaultPlaceholderKupunesia : details.source === 'burungnesia' ? defaultPlaceholderBurungnesia : defaultPlaceholder}
                         alt="No Media"
                         className="w-16 h-16 object-contain mx-auto mb-2 opacity-60"
                       />
@@ -282,8 +329,17 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                 <div className="text-[#e0e0e0]">
                   {activeTab === 'info' && (
                     <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        {details.source && (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full text-white ${getSourceInfo(details.source).color}`}>
+                            <FontAwesomeIcon icon={getSourceInfo(details.source).icon} className="mr-1" />
+                            {getSourceInfo(details.source).label}
+                          </span>
+                        )}
+                      </div>
                       <div>
-                        <h4 className="text-xl font-semibold italic">{details.scientific_name}</h4>
+                        <h4 className="text-[#aaa] text-xs uppercase font-semibold mb-1">Nama Latin</h4>
+                        <p className="text-[#e0e0e0] italic">{details.scientific_name}</p>
                         {(details.genus && details.species) && (
                           <p className="text-[#aaa] italic">{details.genus} {details.species}</p>
                         )}

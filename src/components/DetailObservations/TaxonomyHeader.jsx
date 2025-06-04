@@ -26,8 +26,7 @@ const TaxonomyHeader = ({ checklist }) => {
                     className="hover:text-[#1a73e8] hover:underline transition-colors"
                 >
                     <span className="italic">{cleanScientificName(name)}</span>
-                    {commonName && <span className="text-gray-300 text-sm ml-2 not-italic hidden">({commonName})</span>}
-                    {/* hide common name for now */}
+                    {commonName && <span className="text-gray-300 text-sm ml-2 not-italic">({commonName})</span>}
                 </a>
             );
         }
@@ -37,8 +36,7 @@ const TaxonomyHeader = ({ checklist }) => {
                 title={`Halaman taksonomi untuk ${name} sedang dalam pengembangan`}
             >
                 {cleanScientificName(name)}
-                {commonName && <span className="text-gray-300 text-sm ml-2 not-italic hidden">({commonName})</span>}
-                {/* hide common name for now */}
+                {commonName && <span className="text-gray-300 text-sm ml-2 not-italic">({commonName})</span>}
             </span>
         );
     };

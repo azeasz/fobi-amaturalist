@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faSave, faTimes, faArrowLeft, faMapMarkerAlt, faImage, faTrash, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
@@ -8,6 +8,8 @@ import L from 'leaflet';
 import axios from 'axios';
 import Header from '../components/Header';
 import defaultPlaceholder from '../assets/icon/FOBI.png';
+import defaultPlaceholderKupunesia from '../assets/icon/kupnes.png';
+import defaultPlaceholderBurungnesia from '../assets/icon/icon.png';
 import { format, parse } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
@@ -56,6 +58,7 @@ const EditObservation = () => {
   const [position, setPosition] = useState(null);
   const [formData, setFormData] = useState({
     scientific_name: '',
+    taxon_id: '',
     kingdom: '',
     phylum: '',
     class: '',
@@ -74,6 +77,13 @@ const EditObservation = () => {
   const [previewUrls, setPreviewUrls] = useState([]);
   const [userData, setUserData] = useState(null);
   const [locationCache, setLocationCache] = useState({});
+  
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const timeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Get user data
   useEffect(() => {
@@ -162,15 +172,50 @@ const EditObservation = () => {
 
         if (response.data.success) {
           const data = response.data.data;
-          const locationName = await getLocationName(data.latitude, data.longitude);
+          console.log('Data observasi dari server:', data);
           
-          setFormData({
-            ...data,
+          // Pastikan latitude dan longitude valid
+          let lat = 0;
+          let lng = 0;
+          
+          if (data.latitude !== undefined && data.latitude !== null) {
+            lat = parseFloat(data.latitude);
+            if (isNaN(lat)) lat = 0;
+          }
+          
+          if (data.longitude !== undefined && data.longitude !== null) {
+            lng = parseFloat(data.longitude);
+            if (isNaN(lng)) lng = 0;
+          }
+          
+          const locationName = await getLocationName(lat, lng);
+          
+          // Pastikan field wajib selalu ada dan dalam format yang benar
+          const formattedData = {
+            scientific_name: data.scientific_name || '',
+            latitude: lat,
+            longitude: lng,
+            taxon_id: data.taxon_id || data.taxa_id || '',
+            kingdom: data.kingdom || '',
+            phylum: data.phylum || '',
+            class: data.class || '',
+            order: data.order || '',
+            family: data.family || '',
+            genus: data.genus || '',
+            species: data.species || '',
+            observation_details: data.observation_details || data.additional_note || {},
             location_name: locationName,
-            observation_date: formatDateForInput(data.date || data.observation_date)
-          });
+            observation_date: formatDateForInput(data.date || data.observation_date || data.tgl_pengamatan)
+          };
           
-          setPosition([data.latitude, data.longitude]);
+          console.log('Data yang diformat dengan taksonomi:', formattedData);
+          setFormData(formattedData);
+          
+          // Set position setelah formData diatur
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setPosition([lat, lng]);
+          }
+          
           setMedias(data.medias || []);
         } else {
           setError(response.data.message || 'Gagal memuat data observasi');
@@ -190,19 +235,27 @@ const EditObservation = () => {
 
   // Update position when lat/lng changes
   useEffect(() => {
-    if (formData.latitude && formData.longitude) {
-      setPosition([parseFloat(formData.latitude), parseFloat(formData.longitude)]);
+    if (formData.latitude !== undefined && formData.longitude !== undefined) {
+      const lat = parseFloat(formData.latitude);
+      const lng = parseFloat(formData.longitude);
+      
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setPosition([lat, lng]);
+      }
     }
   }, [formData.latitude, formData.longitude]);
 
   // Update lat/lng when position changes
   useEffect(() => {
-    if (position) {
-      setFormData(prev => ({
-        ...prev,
-        latitude: position[0],
-        longitude: position[1]
-      }));
+    if (position && position.length === 2) {
+      const [lat, lng] = position;
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setFormData(prev => ({
+          ...prev,
+          latitude: lat,
+          longitude: lng
+        }));
+      }
     }
   }, [position]);
 
@@ -217,13 +270,266 @@ const EditObservation = () => {
     };
   }, [newMedias]);
 
-  // Handle input changes
+  // Fungsi untuk mendapatkan nama ilmiah dari nama lengkap
+  const extractScientificName = (fullName) => {
+    if (!fullName) return '';
+
+    const parts = fullName.split(' ');
+    const scientificNameParts = parts.filter(part => {
+      if (part.includes('(') || part.includes(')')) return false;
+      if (/\d/.test(part)) return false;
+      if (parts.indexOf(part) > 1 && /^[A-Z]/.test(part)) return false;
+      return true;
+    });
+
+    return scientificNameParts.join(' ');
+  };
+
+  // Handle input change with autocomplete for scientific_name
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Jika yang diubah adalah scientific_name, reset semua data taksonomi
+    if (name === 'scientific_name') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        // Reset semua data taksonomi ke string kosong
+        taxon_id: '',
+        kingdom: '',
+        phylum: '',
+        class: '',
+        order: '',
+        family: '',
+        genus: '',
+        species: ''
+      }));
+    } else {
+      // Untuk field lain, update seperti biasa
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
+    // Autocomplete for scientific_name
+    if (name === 'scientific_name') {
+      // Jika inputnya "Unknown", atur taxon_rank ke UNKNOWN
+      if (value.toLowerCase() === 'unknown') {
+        setFormData(prev => ({
+          ...prev,
+          scientific_name: 'Unknown',
+          taxon_id: '',
+          kingdom: '',
+          phylum: '',
+          class: '',
+          order: '',
+          family: '',
+          genus: '',
+          species: ''
+        }));
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      if (!value) {
+        setFormData(prev => ({
+          ...prev,
+          scientific_name: '',
+          taxon_id: '',
+          kingdom: '',
+          phylum: '',
+          class: '',
+          order: '',
+          family: '',
+          genus: '',
+          species: ''
+        }));
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(async () => {
+        if (value.length > 2) {
+          try {
+            if (abortControllerRef.current) {
+              abortControllerRef.current.abort();
+            }
+
+            abortControllerRef.current = new AbortController();
+            
+            setIsLoadingSuggestions(true);
+            setSuggestions([]);
+
+            const token = localStorage.getItem('jwt_token');
+            const response = await axios.get(
+              `${import.meta.env.VITE_API_URL}/taxonomy/search?q=${encodeURIComponent(value)}&page=1&per_page=20`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                },
+                signal: abortControllerRef.current.signal
+              }
+            );
+
+            if (response.data.success) {
+              setSuggestions(response.data.data);
+              setShowSuggestions(true);
+            } else {
+              setSuggestions([]);
+              setShowSuggestions(false);
+            }
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              console.error('Error fetching suggestions:', error);
+              setSuggestions([]);
+              setShowSuggestions(false);
+            }
+          } finally {
+            setIsLoadingSuggestions(false);
+          }
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      }, 300);
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion) => {
+    console.log("Suggestion selected:", suggestion);
+    
+    // Extract all taxonomy data from the suggestion
+    const updatedData = {
+      ...formData,
+      scientific_name: suggestion.scientific_name || '',
+      // Selalu atur semua field taksonomi ke string kosong terlebih dahulu
+      taxon_id: '',
+      kingdom: '',
+      phylum: '',
+      class: '',
+      order: '',
+      family: '',
+      genus: '',
+      species: ''
+    };
+    
+    // Kemudian hanya isi field yang ada di data taksa baru
+    if (suggestion.full_data?.id) {
+      updatedData.taxon_id = String(suggestion.full_data.id);
+    }
+    
+    if (suggestion.full_data?.kingdom) {
+      updatedData.kingdom = suggestion.full_data.kingdom;
+    }
+    
+    if (suggestion.full_data?.phylum) {
+      updatedData.phylum = suggestion.full_data.phylum;
+    }
+    
+    if (suggestion.full_data?.class) {
+      updatedData.class = suggestion.full_data.class;
+    }
+    
+    if (suggestion.full_data?.order) {
+      updatedData.order = suggestion.full_data.order;
+    }
+    
+    if (suggestion.full_data?.family) {
+      updatedData.family = suggestion.full_data.family;
+    }
+    
+    if (suggestion.full_data?.genus) {
+      updatedData.genus = suggestion.full_data.genus;
+    }
+    
+    if (suggestion.full_data?.species) {
+      updatedData.species = suggestion.full_data.species;
+    }
+
+    console.log("Updated formData with taxonomy:", updatedData);
+    setFormData(updatedData);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // Handle input blur
+  const handleInputBlur = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  // Render taxonomy suggestions
+  const renderTaxonSuggestions = (searchResults) => {
+    // Gunakan Map untuk melacak item yang sudah dirender berdasarkan scientific_name dan rank
+    const renderedItemsMap = new Map();
+    
+    // Filter duplikasi sebelum rendering
+    const uniqueResults = searchResults.filter(taxon => {
+      // Buat kunci unik berdasarkan scientific_name dan rank
+      const key = `${taxon.scientific_name}-${taxon.rank}`;
+      
+      if (renderedItemsMap.has(key)) {
+        return false; // Item duplikat, lewati
+      }
+      
+      renderedItemsMap.set(key, true);
+      return true;
+    });
+    
+    return uniqueResults.map((taxon, index) => {
+      // Gunakan ID taxa jika tersedia, jika tidak gunakan kombinasi rank-scientific_name-index
+      const uniqueKey = taxon.full_data?.id || `${taxon.rank}-${taxon.scientific_name}-${index}`;
+      
+      let familyContext = '';
+      if (taxon.full_data) {
+        const ranks = [];
+        
+        if (taxon.full_data.family) {
+          ranks.push(`Family: ${taxon.full_data.family}${taxon.full_data.cname_family ? ` (${taxon.full_data.cname_family})` : ''}`);
+        }
+        
+        if (taxon.full_data.order) {
+          ranks.push(`Order: ${taxon.full_data.order}${taxon.full_data.cname_order ? ` (${taxon.full_data.cname_order})` : ''}`);
+        }
+        
+        if (taxon.full_data.class) {
+          ranks.push(`Class: ${taxon.full_data.class}${taxon.full_data.cname_class ? ` (${taxon.full_data.cname_class})` : ''}`);
+        }
+        
+        familyContext = ranks.join(' | ');
+      }
+      
+      return (
+        <div
+          key={uniqueKey}
+          onClick={() => handleSuggestionClick(taxon)}
+          className="p-2 hover:bg-[#3c3c3c] cursor-pointer border-b border-[#444]"
+        >
+          <div className={`${taxon.rank === 'species' ? 'italic' : ''} text-[#e0e0e0] font-medium`}>
+            {taxon.scientific_name}
+            {taxon.common_name && <span className="not-italic"> | {taxon.common_name}</span>}
+            <span className="text-gray-400 text-sm not-italic"> – {taxon.rank.charAt(0).toUpperCase() + taxon.rank.slice(1)}</span>
+          </div>
+          
+          {familyContext && (
+            <div className="text-sm text-gray-400 ml-2 mt-1">
+              {familyContext}
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   // Handle observation details changes
@@ -260,58 +566,213 @@ const EditObservation = () => {
     }
   };
 
-  // Submit form
+  // Improve handleSubmit to correctly send taxonomy data
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
       setError(null);
 
-      // Create form data
-      const submitData = new FormData();
-      
-      // Add basic fields
-      Object.keys(formData).forEach(key => {
-        if (key === 'observation_details') {
-          submitData.append(key, JSON.stringify(formData[key]));
-        } else {
-          submitData.append(key, formData[key]);
+      // Log data form untuk debugging
+      console.log('Form data sebelum validasi:', formData);
+      console.log('taxon_id type:', typeof formData.taxon_id, 'value:', formData.taxon_id);
+
+      // Validasi data wajib
+      if (!formData.scientific_name || formData.latitude === undefined || formData.longitude === undefined) {
+        setError('Nama ilmiah dan lokasi (latitude/longitude) harus diisi');
+        setSaving(false);
+        return;
+      }
+
+      // Jika ada file media baru atau media yang akan dihapus, gunakan FormData
+      if (newMedias.length > 0 || mediaToDelete.length > 0) {
+        // Create form data untuk mengirim file
+        const submitData = new FormData();
+        
+        // Pastikan field wajib selalu ada dan dalam format yang benar
+        submitData.append('scientific_name', String(formData.scientific_name).trim());
+        
+        // Pastikan latitude dan longitude adalah string dari angka yang valid
+        const lat = parseFloat(String(formData.latitude));
+        const lng = parseFloat(String(formData.longitude));
+        
+        if (isNaN(lat) || isNaN(lng)) {
+          console.error('Latitude atau longitude tidak valid:', {
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            parsedLatitude: lat,
+            parsedLongitude: lng
+          });
+          setError('Latitude atau longitude tidak valid. Pastikan nilai koordinat berupa angka.');
+          setSaving(false);
+          return;
         }
-      });
+        
+        submitData.append('latitude', String(lat));
+        submitData.append('longitude', String(lng));
+        
+        // Add taxonomy data - pastikan semua nilai dikonversi ke string
+        // Selalu kirim taxon_id, bahkan jika kosong
+        submitData.append('taxon_id', String(formData.taxon_id || ''));
+        
+        // Selalu kirim semua field taksonomi, bahkan jika kosong
+        submitData.append('kingdom', String(formData.kingdom || ''));
+        submitData.append('phylum', String(formData.phylum || ''));
+        submitData.append('class', String(formData.class || ''));
+        submitData.append('order', String(formData.order || ''));
+        submitData.append('family', String(formData.family || ''));
+        submitData.append('genus', String(formData.genus || ''));
+        submitData.append('species', String(formData.species || ''));
+        
+        if (formData.observation_date) submitData.append('observation_date', formData.observation_date);
+        
+        // Observation details
+        if (formData.observation_details && Object.keys(formData.observation_details).length > 0) {
+          submitData.append('observation_details', JSON.stringify(formData.observation_details));
+        }
 
-      // Add media to delete
-      mediaToDelete.forEach((mediaId, index) => {
-        submitData.append(`media_to_delete[${index}]`, mediaId);
-      });
+        // Add media to delete
+        mediaToDelete.forEach((mediaId, index) => {
+          submitData.append(`media_to_delete[${index}]`, mediaId);
+        });
 
-      // Add new media files
-      newMedias.forEach((file, index) => {
-        submitData.append(`new_media[${index}]`, file);
-      });
+        // Add new media files
+        newMedias.forEach((file, index) => {
+          submitData.append(`new_media[${index}]`, file);
+        });
 
-      // Send to API
-      const token = localStorage.getItem('jwt_token');
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/user-observations/${id}`,
-        submitData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-            'Content-Type': 'multipart/form-data'
+        // Debug: log form data yang akan dikirim
+        console.log('Form data yang akan dikirim:');
+        for (let pair of submitData.entries()) {
+          console.log(pair[0] + ': ' + pair[1]);
+        }
+
+        // Send to API
+        const token = localStorage.getItem('jwt_token');
+        const response = await axios.put(
+          `${import.meta.env.VITE_API_URL}/user-observations/${id}`,
+          submitData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'multipart/form-data'
+            }
           }
-        }
-      );
+        );
 
-      if (response.data.success) {
-        // Navigate back to list
-        navigate('/my-observations');
+        if (response.data.success) {
+          toast.success('Observasi berhasil diperbarui');
+          // Navigate back to list
+          navigate('/my-observations');
+        } else {
+          setError(response.data.message || 'Gagal menyimpan perubahan');
+        }
       } else {
-        setError(response.data.message || 'Gagal menyimpan perubahan');
+        // Jika tidak ada file, gunakan JSON biasa
+        const jsonData = {
+          scientific_name: String(formData.scientific_name).trim(),
+          latitude: parseFloat(String(formData.latitude)),
+          longitude: parseFloat(String(formData.longitude)),
+          // Selalu kirim semua field taksonomi, bahkan jika kosong
+          taxon_id: String(formData.taxon_id || ''),
+          kingdom: String(formData.kingdom || ''),
+          phylum: String(formData.phylum || ''),
+          class: String(formData.class || ''),
+          order: String(formData.order || ''),
+          family: String(formData.family || ''),
+          genus: String(formData.genus || ''),
+          species: String(formData.species || '')
+        };
+        
+        // Pastikan nilai latitude dan longitude adalah angka yang valid
+        if (isNaN(jsonData.latitude) || isNaN(jsonData.longitude)) {
+          console.error('Latitude atau longitude tidak valid:', {
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            parsedLatitude: jsonData.latitude,
+            parsedLongitude: jsonData.longitude
+          });
+          setError('Latitude atau longitude tidak valid. Pastikan nilai koordinat berupa angka.');
+          setSaving(false);
+          return;
+        }
+        
+        if (formData.observation_date) jsonData.observation_date = formData.observation_date;
+        
+        // Observation details
+        if (formData.observation_details && Object.keys(formData.observation_details).length > 0) {
+          jsonData.observation_details = formData.observation_details;
+        }
+        
+        console.log('JSON data yang akan dikirim:', jsonData);
+        
+        // Send to API
+        const token = localStorage.getItem('jwt_token');
+        const response = await axios.put(
+          `${import.meta.env.VITE_API_URL}/user-observations/${id}`,
+          jsonData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.data.success) {
+          toast.success('Observasi berhasil diperbarui');
+          // Navigate back to list
+          navigate('/my-observations');
+        } else {
+          setError(response.data.message || 'Gagal menyimpan perubahan');
+        }
       }
     } catch (err) {
       console.error('Error saving observation:', err);
-      setError('Gagal menyimpan perubahan. Silakan coba lagi nanti.');
+      
+      // Log detail error untuk debugging
+      if (err.response) {
+        console.error('Error response status:', err.response.status);
+        console.error('Error response headers:', err.response.headers);
+        console.error('Error response data:', err.response.data);
+        
+        // Handle validation errors
+        if (err.response.status === 422 && err.response.data.errors) {
+          console.error('Validation errors:', err.response.data.errors);
+          const errorMessages = Object.values(err.response.data.errors).flat().join('\n');
+          setError(`Validasi gagal:\n${errorMessages}`);
+        } 
+        // Handle SQL errors related to unknown columns
+        else if (err.response.data.message && err.response.data.message.includes('Unknown column')) {
+          console.error('SQL Error - Unknown column:', err.response.data.message);
+          
+          // Extract column name from error message
+          const match = err.response.data.message.match(/Unknown column '([^']+)'/);
+          const columnName = match ? match[1] : 'unknown';
+          
+          // Retry without the problematic field
+          console.log(`Retrying without the problematic field: ${columnName}`);
+          
+          // Create a new form data without the problematic field
+          const cleanedFormData = { ...formData };
+          delete cleanedFormData[columnName];
+          
+          // Set the cleaned form data and retry submission
+          setFormData(cleanedFormData);
+          setTimeout(() => {
+            // Retry submission after a short delay
+            handleSubmit(e);
+          }, 500);
+          
+          return; // Exit early to avoid setting generic error message
+        } else {
+          setError(err.response.data.message || 'Gagal menyimpan perubahan');
+        }
+      } else {
+        setError('Gagal terhubung ke server');
+      }
     } finally {
       setSaving(false);
     }
@@ -321,6 +782,18 @@ const EditObservation = () => {
   const handleCancel = () => {
     navigate('/my-observations');
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -350,7 +823,15 @@ const EditObservation = () => {
                 <FontAwesomeIcon icon={faExclamationTriangle} className="mr-2" />
                 <span className="font-bold">Error</span>
               </div>
-              <p>{error}</p>
+              {error.includes('\n') ? (
+                <div>
+                  {error.split('\n').map((line, index) => (
+                    <p key={index} className="mb-1">{line}</p>
+                  ))}
+                </div>
+              ) : (
+                <p>{error}</p>
+              )}
               <button
                 onClick={() => navigate('/my-observations')}
                 className="mt-4 px-4 py-2 bg-[#323232] text-[#e0e0e0] rounded hover:bg-[#3c3c3c]"
@@ -367,38 +848,61 @@ const EditObservation = () => {
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Nama Ilmiah <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        name="scientific_name"
-                        value={formData.scientific_name}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Genus</label>
+                      <label htmlFor="scientific_name" className="block text-sm font-medium mb-2">
+                        Nama Ilmiah <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
                         <input
                           type="text"
-                          name="genus"
-                          value={formData.genus}
+                          id="scientific_name"
+                          name="scientific_name"
+                          value={formData.scientific_name}
                           onChange={handleInputChange}
-                          className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
+                          onBlur={handleInputBlur}
+                          placeholder="Masukkan nama ilmiah"
+                          className="w-full p-3 bg-[#2c2c2c] border border-[#444] rounded-lg focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent text-[#e0e0e0]"
+                          required
                         />
+                        
+                        {/* Hidden input fields untuk data taksonomi */}
+                        <input type="hidden" name="taxon_id" value={formData.taxon_id ? String(formData.taxon_id) : ''} />
+                        <input type="hidden" name="kingdom" value={formData.kingdom || ''} />
+                        <input type="hidden" name="phylum" value={formData.phylum || ''} />
+                        <input type="hidden" name="class" value={formData.class || ''} />
+                        <input type="hidden" name="order" value={formData.order || ''} />
+                        <input type="hidden" name="family" value={formData.family || ''} />
+                        <input type="hidden" name="genus" value={formData.genus || ''} />
+                        <input type="hidden" name="species" value={formData.species || ''} />
+                        
+                        {/* Suggestions dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-[#2c2c2c] border border-[#444] rounded-lg shadow-lg overflow-y-auto max-h-60">
+                            {renderTaxonSuggestions(suggestions)}
+                          </div>
+                        )}
+                        
+                        {isLoadingSuggestions && (
+                          <div className="absolute right-3 top-3">
+                            <FontAwesomeIcon icon={faSpinner} spin className="text-[#aaa]" />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Spesies</label>
-                        <input
-                          type="text"
-                          name="species"
-                          value={formData.species}
-                          onChange={handleInputChange}
-                          className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                        />
-                      </div>
+                      
+                      {/* Display taxonomy info if available */}
+                      {(formData.kingdom || formData.family || formData.genus) && (
+                        <div className="mt-2 p-3 bg-[#2c2c2c] border border-[#444] rounded-lg text-sm">
+                          <h4 className="font-medium mb-2 text-[#e0e0e0]">Informasi Taksonomi:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[#aaa]">
+                            {formData.kingdom && <div><span className="font-medium">Kingdom:</span> {formData.kingdom}</div>}
+                            {formData.phylum && <div><span className="font-medium">Phylum:</span> {formData.phylum}</div>}
+                            {formData.class && <div><span className="font-medium">Class:</span> {formData.class}</div>}
+                            {formData.order && <div><span className="font-medium">Order:</span> {formData.order}</div>}
+                            {formData.family && <div><span className="font-medium">Family:</span> {formData.family}</div>}
+                            {formData.genus && <div><span className="font-medium">Genus:</span> <span className="italic">{formData.genus}</span></div>}
+                            {formData.species && <div><span className="font-medium">Species:</span> <span className="italic">{formData.species}</span></div>}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -454,68 +958,6 @@ const EditObservation = () => {
                 </div>
               </div>
 
-              {/* Taxonomy */}
-              <div className="bg-[#1e1e1e] p-4 rounded-lg shadow-md border border-[#333]">
-                <h2 className="text-lg font-semibold mb-4 pb-2 border-b border-[#333]">Taksonomi</h2>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Kingdom</label>
-                    <input
-                      type="text"
-                      name="kingdom"
-                      value={formData.kingdom}
-                      onChange={handleInputChange}
-                      className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Phylum</label>
-                    <input
-                      type="text"
-                      name="phylum"
-                      value={formData.phylum}
-                      onChange={handleInputChange}
-                      className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Class</label>
-                    <input
-                      type="text"
-                      name="class"
-                      value={formData.class}
-                      onChange={handleInputChange}
-                      className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Order</label>
-                    <input
-                      type="text"
-                      name="order"
-                      value={formData.order}
-                      onChange={handleInputChange}
-                      className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Family</label>
-                    <input
-                      type="text"
-                      name="family"
-                      value={formData.family}
-                      onChange={handleInputChange}
-                      className="w-full p-2 border border-[#444] rounded focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
-                  </div>
-                </div>
-              </div>
-              
               {/* Media Gallery */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4 text-[#e0e0e0]">Media</h3>
@@ -554,7 +996,7 @@ const EditObservation = () => {
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.onerror = null;
-                                e.target.src = defaultPlaceholder;
+                                e.target.src = media.source === 'kupunesia' ? defaultPlaceholderKupunesia : media.source === 'burungnesia' ? defaultPlaceholderBurungnesia : defaultPlaceholder;
                                 console.error('Error loading media:', media.full_url);
                               }}
                             />

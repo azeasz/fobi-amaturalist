@@ -25,6 +25,10 @@ import TreeView from 'react-treeview';
 import "react-treeview/react-treeview.css";
 import { getColor, getVisibleGridType } from '../../utils/mapHelpers';
 import { GRID_SIZES, getGridSizeFromType } from '../../utils/gridHelpers';
+import { apiFetch } from '../../utils/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import toast from 'react-hot-toast';
 
 // Komponen ZoomHandler yang terpisah
 const ZoomHandler = ({ setVisibleGrid }) => {
@@ -493,6 +497,8 @@ const SpeciesDetail = () => {
     const [similarSpecies, setSimilarSpecies] = useState([]);
     const [tabValue, setTabValue] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [iucnStatus, setIucnStatus] = useState(null);
+    const [loadingIucn, setLoadingIucn] = useState(false);
 
     // Membuat tema gelap
     const darkTheme = createTheme({
@@ -562,6 +568,113 @@ const SpeciesDetail = () => {
         },
     });
 
+    // Fungsi untuk mengambil status IUCN langsung dari API IUCN Red List
+    const fetchIUCNStatus = useCallback(async (scientificName) => {
+        if (!scientificName) return null;
+        
+        try {
+            setLoadingIucn(true);
+            
+            // Gunakan backend sebagai proxy untuk menghindari masalah CORS
+            const response = await apiFetch(`/observations/iucn-status?scientific_name=${encodeURIComponent(scientificName)}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            // Periksa apakah response valid
+            if (!response || !response.ok) {
+                throw new Error(`HTTP error! status: ${response?.status || 'unknown'}`);
+            }
+            
+            // Ambil teks respons terlebih dahulu
+            const responseText = await response.text();
+            
+            // Periksa apakah respons kosong
+            if (!responseText || responseText.trim() === '') {
+                console.warn('Empty response from IUCN API');
+                return null;
+            }
+            
+            // Coba parse JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError, 'Response text:', responseText.substring(0, 100));
+                throw new Error(`Invalid JSON response: ${parseError.message}`);
+            }
+            
+            // Periksa struktur data
+            if (!data || typeof data !== 'object') {
+                console.warn('Invalid data structure from IUCN API', data);
+                return null;
+            }
+            
+            if (data.success && data.data && data.data.iucn_status) {
+                setIucnStatus(data.data.iucn_status);
+                return data.data.iucn_status;
+            }
+            
+            setIucnStatus(null);
+            return null;
+        } catch (error) {
+            console.error('Error fetching IUCN status:', error);
+            // Tampilkan pesan error yang lebih informatif
+            toast.error(`Gagal mengambil status IUCN: ${error.message}`, {
+                duration: 3000,
+                position: 'bottom-center'
+            });
+            setIucnStatus(null);
+            return null;
+        } finally {
+            setLoadingIucn(false);
+        }
+    }, []);
+
+    // Fungsi untuk mendapatkan warna dan label berdasarkan status IUCN
+    const getIUCNStatusDisplay = (status) => {
+        if (!status) return null;
+        
+        const statusLower = status.toLowerCase();
+        let bgColor = 'bg-green-900';
+        let textColor = 'text-green-200';
+        let ringColor = 'ring-green-600/40';
+        let color = '#10B981'; // Untuk MUI
+        
+        if (statusLower.includes('extinct')) {
+            bgColor = 'bg-black';
+            textColor = 'text-gray-200';
+            ringColor = 'ring-gray-600/40';
+            color = '#000000';
+        } else if (statusLower.includes('critically') || statusLower.includes('endangered')) {
+            bgColor = 'bg-red-900';
+            textColor = 'text-red-200';
+            ringColor = 'ring-red-600/40';
+            color = '#DC2626';
+        } else if (statusLower.includes('vulnerable')) {
+            bgColor = 'bg-orange-900';
+            textColor = 'text-orange-200';
+            ringColor = 'ring-orange-600/40';
+            color = '#EA580C';
+        } else if (statusLower.includes('near') || statusLower.includes('threatened')) {
+            bgColor = 'bg-yellow-900';
+            textColor = 'text-yellow-200';
+            ringColor = 'ring-yellow-600/40';
+            color = '#CA8A04';
+        }
+        
+        return {
+            bgColor,
+            textColor,
+            ringColor,
+            color,
+            label: status
+        };
+    };
+
     useEffect(() => {
         fetchSpeciesData();
         fetchSimilarSpecies();
@@ -571,6 +684,17 @@ const SpeciesDetail = () => {
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/species-gallery/detail/${taxaId}`);
             setSpeciesData(response.data.data);
+            
+            // Cek status IUCN jika ada scientific_name
+            if (response.data.data.species && response.data.data.species.scientific_name) {
+                // Jika sudah ada status IUCN dari backend
+                if (response.data.data.species.iucn_red_list_category) {
+                    setIucnStatus(response.data.data.species.iucn_red_list_category);
+                } else {
+                    // Jika tidak ada, ambil dari API
+                    fetchIUCNStatus(response.data.data.species.scientific_name);
+                }
+            }
         } catch (error) {
             console.error('Error fetching species data:', error);
         } finally {
@@ -617,11 +741,58 @@ const SpeciesDetail = () => {
                         <Typography variant="body1" gutterBottom>
                             Family: {species.family}
                         </Typography>
-                        {species.iucn_red_list_category && (
-                            <Typography variant="body1" gutterBottom>
-                                Status IUCN: {species.iucn_red_list_category}
-                            </Typography>
+                        
+                        {/* IUCN Status */}
+                        {(iucnStatus || species.iucn_red_list_category) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 1 }}>
+                                <Typography variant="body1" sx={{ mr: 1 }}>
+                                    Status IUCN:
+                                </Typography>
+                                {loadingIucn ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '8px' }} />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Memuat...
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    (() => {
+                                        const status = getIUCNStatusDisplay(iucnStatus || species.iucn_red_list_category);
+                                        return (
+                                            <Box 
+                                                sx={{ 
+                                                    px: 1, 
+                                                    py: 0.5, 
+                                                    borderRadius: 1, 
+                                                    bgcolor: status.color,
+                                                    color: '#fff',
+                                                    display: 'inline-block'
+                                                }}
+                                            >
+                                                {status.label}
+                                            </Box>
+                                        );
+                                    })()
+                                )}
+                            </Box>
                         )}
+                        
+                        {/* Tombol Cek Status IUCN jika belum ada */}
+                        {!iucnStatus && !species.iucn_red_list_category && species.scientific_name && (
+                            <Button 
+                                variant="outlined" 
+                                size="small" 
+                                onClick={() => fetchIUCNStatus(species.scientific_name)}
+                                disabled={loadingIucn}
+                                sx={{ mt: 1, mb: 1 }}
+                                startIcon={loadingIucn ? 
+                                    <FontAwesomeIcon icon={faSpinner} spin /> : 
+                                    <FontAwesomeIcon icon={faInfoCircle} />}
+                            >
+                                {loadingIucn ? 'Memuat status IUCN...' : 'Cek Status IUCN'}
+                            </Button>
+                        )}
+                        
                         {species.status_kepunahan && (
                             <Typography variant="body1" gutterBottom>
                                 Status Kepunahan: {species.status_kepunahan}
@@ -640,13 +811,13 @@ const SpeciesDetail = () => {
                             {media.map((item, index) => (
                                 <ImageListItem key={item.id}>
                                     <img
-                                        src={`https://api.amaturalist.com/storage/${item.file_path}`}
+                                        src={`https://api.talinara.com/storage/${item.file_path}`}
                                         alt={`Observasi ${index + 1}`}
                                         loading="lazy"
                                     />
                                     {item.spectrogram && (
                                         <img
-                                            src={`https://api.amaturalist.com/storage/${item.spectrogram}`}
+                                            src={`https://api.talinara.com/storage/${item.spectrogram}`}
                                             alt={`Spectrogram ${index + 1}`}
                                             style={{
                                                 marginTop: '8px',

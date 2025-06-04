@@ -13,6 +13,8 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import defaultPlaceholder from '../assets/icon/FOBI.png';
+import defaultPlaceholderKupunesia from '../assets/icon/kupnes.png';
+import defaultPlaceholderBurungnesia from '../assets/icon/icon.png';
 import { useMap } from 'react-leaflet';
 import { toast } from 'react-hot-toast';
 
@@ -173,7 +175,6 @@ const UserObservations = () => {
       console.error('Error fetching observations:', err);
       if (err.response?.status === 401) {
         setError('Sesi Anda telah berakhir. Silakan login kembali.');
-        navigate('/login');
       } else {
         setError('Gagal terhubung ke server. Silakan coba lagi nanti.');
       }
@@ -210,7 +211,15 @@ const UserObservations = () => {
   
   // Edit observation
   const handleEdit = (observation) => {
-    navigate(`/edit-observation/${observation.id}`);
+    // Tambahkan prefix untuk ID berdasarkan sumber data
+    let editId = observation.id;
+    if (observation.source === 'burungnesia') {
+      editId = `BN${observation.id}`;
+    } else if (observation.source === 'kupunesia') {
+      editId = `KN${observation.id}`;
+    }
+    
+    navigate(`/edit-observation/${editId}`);
   };
   
   // Delete observation
@@ -256,9 +265,17 @@ const UserObservations = () => {
     try {
       setIsDeleting(true);
       
+      // Tambahkan prefix untuk ID berdasarkan sumber data
+      let deleteId = selectedObservation.id;
+      if (selectedObservation.source === 'burungnesia') {
+        deleteId = `BN${selectedObservation.id}`;
+      } else if (selectedObservation.source === 'kupunesia') {
+        deleteId = `KN${selectedObservation.id}`;
+      }
+      
       const token = localStorage.getItem('jwt_token');
       const response = await axios.delete(
-        `${import.meta.env.VITE_API_URL}/user-observations/${selectedObservation.id}`,
+        `${import.meta.env.VITE_API_URL}/user-observations/${deleteId}`,
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -270,14 +287,15 @@ const UserObservations = () => {
       
       if (response.data.success) {
         // Remove from state
-        setObservations(observations.filter(obs => obs.id !== selectedObservation.id));
-        setMapObservations(mapObservations.filter(obs => obs.id !== selectedObservation.id));
+        setObservations(observations.filter(obs => obs.id !== selectedObservation.id || obs.source !== selectedObservation.source));
+        setMapObservations(mapObservations.filter(obs => obs.id !== selectedObservation.id || obs.source !== selectedObservation.source));
         
         // Reset
         setShowDeleteModal(false);
         setSelectedObservation(null);
         
-        // Show success toast or notification here
+        // Show success toast
+        toast.success('Observasi berhasil dihapus');
       } else {
         setError(response.data.message || 'Gagal menghapus observasi');
       }
@@ -287,6 +305,7 @@ const UserObservations = () => {
         setError('Sesi Anda telah berakhir. Silakan login kembali.');
       } else {
         setError('Gagal menghapus observasi. Silakan coba lagi nanti.');
+        toast.error('Gagal menghapus observasi');
       }
     } finally {
       setIsDeleting(false);
@@ -396,6 +415,29 @@ const UserObservations = () => {
     }
   }, [observations, generateGridLevels]);
   
+  // Tambahkan badge untuk menunjukkan sumber data
+  const getSourceBadge = (source) => {
+    if (source === 'burungnesia') {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-800 text-white">
+          Burungnesia
+        </span>
+      );
+    } else if (source === 'kupunesia') {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-800 text-white">
+          Kupunesia
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-800 text-white">
+          Amaturalist
+        </span>
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#121212] text-[#e0e0e0]">
       <Header userData={userData} />
@@ -543,7 +585,13 @@ const UserObservations = () => {
                                 className="w-full h-24 object-cover rounded mb-2"
                                 onError={(e) => {
                                   e.target.onerror = null;
-                                  e.target.src = defaultPlaceholder;
+                                  if (obs.source === 'kupunesia') {
+                                    e.target.src = defaultPlaceholderKupunesia;
+                                  } else if (obs.source === 'burungnesia') {
+                                    e.target.src = defaultPlaceholderBurungnesia;
+                                  } else {
+                                    e.target.src = defaultPlaceholder;
+                                  }
                                 }}
                               />
                             )}
@@ -609,6 +657,9 @@ const UserObservations = () => {
                           Tanggal
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
+                          Sumber
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
                           Aksi
                         </th>
                       </tr>
@@ -616,7 +667,7 @@ const UserObservations = () => {
                     <tbody className="divide-y divide-[#333]">
                       {observations.map((observation) => (
                         <tr 
-                          key={observation.id} 
+                          key={`${observation.source}-${observation.id}`} 
                           className="hover:bg-[#2a2a2a] transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -628,7 +679,13 @@ const UserObservations = () => {
                                   className="w-16 h-16 object-cover"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = defaultPlaceholder;
+                                    if (observation.source === 'kupunesia') {
+                                      e.target.src = defaultPlaceholderKupunesia;
+                                    } else if (observation.source === 'burungnesia') {
+                                      e.target.src = defaultPlaceholderBurungnesia;
+                                    } else {
+                                      e.target.src = defaultPlaceholder;
+                                    }
                                     console.log('Error loading image:', observation.photo_url);
                                   }}
                                   onLoad={() => {
@@ -637,7 +694,7 @@ const UserObservations = () => {
                                 />
                               ) : (
                                 <img
-                                  src={defaultPlaceholder}
+                                  src={observation.source === 'kupunesia' ? defaultPlaceholderKupunesia : observation.source === 'burungnesia' ? defaultPlaceholderBurungnesia : defaultPlaceholder}
                                   alt="Default"
                                   className="w-12 h-12 object-contain opacity-60"
                                 />
@@ -662,6 +719,9 @@ const UserObservations = () => {
                           </td>
                           <td className="px-6 py-4 text-[#e0e0e0]">
                             {observation.formatted_date}
+                          </td>
+                          <td className="px-6 py-4">
+                            {getSourceBadge(observation.source)}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">

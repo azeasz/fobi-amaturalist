@@ -149,8 +149,9 @@ function KupunesiaUpload() {
                     throw new Error('Silakan login terlebih dahulu');
                 }
 
-                    const response = await fetch(`${import.meta.env.VITE_API_URL}/kupunesia/faunas?name=${encodeURIComponent(name)}`, {
-                        headers: {
+                // Gunakan endpoint taxonomy/butterflies/search terlebih dahulu
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/taxonomy/butterflies/search?q=${encodeURIComponent(name)}`, {
+                    headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
@@ -163,9 +164,33 @@ function KupunesiaUpload() {
                 if (!response.ok) throw new Error('Gagal mengambil data kupu-kupu');
                 
                 const data = await response.json();
-                if (data.success) {
-                    setSuggestions(data.data);
+                if (data.success && data.data.length > 0) {
+                    // Urutkan hasil pencarian berdasarkan kecocokan dengan input pengguna
+                    const sortedResults = sortSearchResults(data.data, name);
+                    setSuggestions(sortedResults);
                     setShowSuggestions(true);
+                } else {
+                    // Fallback ke endpoint lama jika tidak ada hasil
+                    const fallbackResponse = await fetch(`${import.meta.env.VITE_API_URL}/kupunesia/faunas?name=${encodeURIComponent(name)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (fallbackResponse.status === 401) {
+                        navigate('/login', { replace: true });
+                        return;
+                    }
+                    
+                    if (!fallbackResponse.ok) throw new Error('Gagal mengambil data kupu-kupu');
+                    
+                    const fallbackData = await fallbackResponse.json();
+                    if (fallbackData.success) {
+                        // Urutkan hasil pencarian fallback
+                        const sortedFallbackResults = sortSearchResults(fallbackData.data, name);
+                        setSuggestions(sortedFallbackResults);
+                        setShowSuggestions(true);
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -182,8 +207,87 @@ function KupunesiaUpload() {
         }
     };
 
+    // Fungsi untuk mengurutkan hasil pencarian berdasarkan kecocokan
+    const sortSearchResults = (results, query) => {
+        const lowerQuery = query.toLowerCase();
+        
+        return results.sort((a, b) => {
+            // Prioritaskan hasil yang memiliki kecocokan di awal nama
+            const aNameId = (a.nameId || '').toLowerCase();
+            const bNameId = (b.nameId || '').toLowerCase();
+            const aNameLat = (a.nameLat || '').toLowerCase();
+            const bNameLat = (b.nameLat || '').toLowerCase();
+            const aDisplayName = (a.displayName || '').toLowerCase();
+            const bDisplayName = (b.displayName || '').toLowerCase();
+            
+            // Jika nama persis sama dengan query, prioritaskan tertinggi
+            const aExactMatch = aNameId === lowerQuery || aDisplayName === lowerQuery;
+            const bExactMatch = bNameId === lowerQuery || bDisplayName === lowerQuery;
+            
+            if (aExactMatch && !bExactMatch) return -1;
+            if (!aExactMatch && bExactMatch) return 1;
+            
+            // Periksa kecocokan di awal nama (exact match di awal)
+            const aStartsWithQuery = 
+                aNameId.startsWith(lowerQuery) || 
+                aNameLat.startsWith(lowerQuery) || 
+                aDisplayName.startsWith(lowerQuery);
+                
+            const bStartsWithQuery = 
+                bNameId.startsWith(lowerQuery) || 
+                bNameLat.startsWith(lowerQuery) || 
+                bDisplayName.startsWith(lowerQuery);
+                
+            if (aStartsWithQuery && !bStartsWithQuery) return -1;
+            if (!aStartsWithQuery && bStartsWithQuery) return 1;
+            
+            // Jika keduanya cocok di awal atau keduanya tidak cocok di awal,
+            // periksa kecocokan di tengah nama (contains)
+            const aContainsQuery = 
+                aNameId.includes(lowerQuery) || 
+                aNameLat.includes(lowerQuery) || 
+                aDisplayName.includes(lowerQuery);
+                
+            const bContainsQuery = 
+                bNameId.includes(lowerQuery) || 
+                bNameLat.includes(lowerQuery) || 
+                bDisplayName.includes(lowerQuery);
+                
+            if (aContainsQuery && !bContainsQuery) return -1;
+            if (!aContainsQuery && bContainsQuery) return 1;
+            
+            // Jika keduanya memiliki kecocokan yang sama, urutkan berdasarkan panjang nama
+            // (nama yang lebih pendek biasanya lebih relevan)
+            const aNameLength = Math.min(
+                aNameId.length || Infinity, 
+                aNameLat.length || Infinity, 
+                aDisplayName.length || Infinity
+            );
+            
+            const bNameLength = Math.min(
+                bNameId.length || Infinity, 
+                bNameLat.length || Infinity, 
+                bDisplayName.length || Infinity
+            );
+            
+            return aNameLength - bNameLength;
+        });
+    };
+
     const handleSelectFauna = (fauna) => {
-        setFaunaName(`${fauna.nameId} (${fauna.nameLat})`);
+        // Tentukan tampilan nama berdasarkan ketersediaan displayName
+        let displayName = '';
+        
+        if (fauna.displayName) {
+            displayName = fauna.displayName;
+        } else if (fauna.nameId) {
+            displayName = fauna.nameId;
+        } else if (fauna.nameLat) {
+            displayName = fauna.nameLat;
+        }
+        
+        // Tidak perlu menambahkan informasi taksonomi di tampilan nama
+        setFaunaName(displayName);
         setFaunaId(parseInt(fauna.id));
         setShowSuggestions(false);
     };
@@ -601,7 +705,7 @@ function KupunesiaUpload() {
         <div className="bg-[#1e1e1e] p-4 rounded-lg border border-[#444]">
             <h3 className="text-lg font-medium mb-3 text-white">Status Pengamatan</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* <div className="flex items-center space-x-2 bg-[#2c2c2c] p-3 rounded-lg">
+                <div className="flex items-center space-x-2 bg-[#2c2c2c] p-3 rounded-lg">
                     <input 
                         type="checkbox" 
                         name="active"
@@ -616,7 +720,7 @@ function KupunesiaUpload() {
                         }}
                     />
                     <label htmlFor="active" className="text-gray-300">Aktifitas</label>
-                </div> */}
+                </div>
                 <div className="flex items-center space-x-2 bg-[#2c2c2c] p-3 rounded-lg">
                     <input 
                         type="checkbox" 
@@ -910,12 +1014,19 @@ function KupunesiaUpload() {
                                         <div className="absolute z-50 w-full bg-[#2c2c2c] border border-[#444] rounded-md shadow-lg max-h-60 overflow-y-auto">
                                             {suggestions.map((fauna) => (
                                                 <div
-                                                    key={fauna.id}
+                                                    key={`${fauna.id}_${fauna.taxa_id || ''}`}
                                                     className="px-4 py-2 hover:bg-[#383838] cursor-pointer text-white"
                                                     onClick={() => handleSelectFauna(fauna)}
                                                 >
-                                                    <span className="font-medium">{fauna.nameId}</span>
-                                                    <span className="text-sm text-gray-400 ml-2">({fauna.nameLat})</span>
+                                                    <div className="flex items-center">
+                                                        <span className="font-medium">{fauna.nameId}</span>
+                                                        {fauna.taxon_rank && (
+                                                            <span className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 ml-2 rounded-full">
+                                                                {fauna.taxon_rank.toLowerCase()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-sm text-gray-400 italic">{fauna.nameLat}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -1257,7 +1368,9 @@ function KupunesiaUpload() {
                                                 </span></p>
                                             )}
                                             {butterfly.breeding === 1 && butterfly.breeding_note && (
-                                                <p><strong className="text-white">Catatan Aktivitas:</strong> <span className="text-gray-300">{butterfly.breeding_note}</span></p>
+                                                <p className="mt-1 text-xs">
+                                                    <strong>Catatan aktivitas:</strong> {butterfly.breeding_note}
+                                                </p>
                                             )}
                                         </div>
                                     ))}

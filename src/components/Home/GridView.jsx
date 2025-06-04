@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faInfo, faListDots, faImage, faDove, faLocationDot, faQuestion, faCheck, faLink, faPlay, faPause, faUsers, faSort, faSortUp, faSortDown } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faInfo, faListDots, faImage, faDove, faLocationDot, faQuestion, faCheck, faLink, faPlay, faPause, faUsers, faSort, faSortUp, faSortDown, faUser, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import 'swiper/css';
 import './GridView.css';
 import { useNavigate, Link } from 'react-router-dom';
@@ -220,9 +220,9 @@ const getGradeDisplay = (grade, type) => {
   // Ubah label casual sesuai sumber
   switch(type) {
     case 'bird':
-      return 'Checklist Burungnesia';
+      return 'Checklist';
     case 'butterfly':
-      return 'Checklist Kupunesia';
+      return 'Checklist';
     default:
       return 'Checklist FOBI';
   }
@@ -300,7 +300,16 @@ const Card = ({ item, isEager }) => {
     return null;
   };
 
+  // Buat title attribute untuk hover berdasarkan taxonomyLevel
+  const getTaxonomyTitle = () => {
+    if (!item.taxonomyLevel) return '';
+    return `${item.taxonomyLevel.charAt(0).toUpperCase() + item.taxonomyLevel.slice(1)}: ${item.title}`;
+  };
+
   const totalCount = getTotalCount();
+  
+  // Hitung jumlah media
+  const imagesCount = item.images && Array.isArray(item.images) ? item.images.length : 0;
 
   return (
     <div className="card relative">
@@ -311,6 +320,14 @@ const Card = ({ item, isEager }) => {
         type={item.type}
         isEager={isEager}
       />
+      
+      {/* Indikator jumlah media untuk desktop */}
+      {imagesCount > 1 && (
+        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-20">
+          <FontAwesomeIcon icon={faImage} className="text-xs" />
+          <span>{imagesCount}</span>
+        </div>
+      )}
 
       <div className="card-body p-4 cursor-pointer hover:bg-[#2c2c2c]" onClick={() => handleClick(item)}>
         <div className="flex items-center justify-between mb-2">
@@ -331,7 +348,12 @@ const Card = ({ item, isEager }) => {
             {getGradeDisplay(item.quality.grade, item.type)}
           </span>
         </div>
-        <h5 className="font-medium text-lg mb-2 text-white">{item.title}</h5>
+        <h5 
+          className={`font-medium text-lg mb-2 text-white ${item.taxonomyLevel ? 'cursor-help' : ''}`}
+          title={getTaxonomyTitle()}
+        >
+          {item.title}
+        </h5>
         <p className="text-sm text-gray-300 whitespace-pre-line">{item.description}</p>
       </div>
 
@@ -452,6 +474,12 @@ const ListViewDesktop = ({ observations, handleClick }) => {
     }));
   };
 
+  // Fungsi untuk mendapatkan title attribute berdasarkan taxonomyLevel
+  const getTaxonomyTitle = (item) => {
+    if (!item.taxonomyLevel) return '';
+    return `${item.taxonomyLevel.charAt(0).toUpperCase() + item.taxonomyLevel.slice(1)}: ${item.title}`;
+  };
+
   const sortedObservations = [...observations].sort((a, b) => {
     if (!a[sortConfig.key] || !b[sortConfig.key]) return 0;
     const dateA = new Date(a[sortConfig.key]);
@@ -525,7 +553,7 @@ const ListViewDesktop = ({ observations, handleClick }) => {
                               src={firstImageUrl}
                               alt=""
                               className={`w-full h-full ${
-                                firstImageUrl.includes('/assets/icon/') 
+                                firstImageUrl && typeof firstImageUrl === 'string' && firstImageUrl.includes('/assets/icon/') 
                                   ? 'object-contain p-2' 
                                   : 'object-cover'
                               }`}
@@ -547,7 +575,12 @@ const ListViewDesktop = ({ observations, handleClick }) => {
                           )}
                         </div>
                         <div>
-                          <div className="font-medium text-white">{item.title}</div>
+                          <div 
+                            className={`font-medium text-white ${item.taxonomyLevel ? 'cursor-help' : ''}`}
+                            title={getTaxonomyTitle(item)}
+                          >
+                            {item.title}
+                          </div>
                           <div className="text-sm text-gray-400 italic mt-0.5">
                             {extractScientificName(item.species) || item.nameLat || '-'}
                           </div>
@@ -568,25 +601,6 @@ const ListViewDesktop = ({ observations, handleClick }) => {
                       </Link>
                     </td>
                     <td className="p-4 text-sm text-gray-300">{item.location || '-'}</td>
-                    {/* <td className="p-4">
-                      <div className="space-y-1">
-                        {item.type === 'bird' && (
-                          <>
-                            <div className="text-sm text-green-600">{item.fobi_count || 0} FOBI</div>
-                            <div className="text-sm text-blue-600">{item.burungnesia_count || 0} Burungnesia</div>
-                          </>
-                        )}
-                        {item.type === 'butterfly' && (
-                          <>
-                            <div className="text-sm text-green-600">{item.fobi_count || 0} FOBI</div>
-                            <div className="text-sm text-purple-600">{item.kupunesia_count || 0} Kupunesia</div>
-                          </>
-                        )}
-                        {item.type === 'general' && (
-                          <div className="text-sm text-green-600">{item.fobi_count || 0} FOBI</div>
-                        )}
-                      </div>
-                    </td> */}
                     <td className="p-4 text-sm whitespace-nowrap">
                       {item.observation_date 
                         ? new Date(item.observation_date).toLocaleDateString('id-ID', {
@@ -636,6 +650,9 @@ const ListViewDesktop = ({ observations, handleClick }) => {
                             <FontAwesomeIcon icon={faLink} />
                           </span>
                         )}
+                        <span className="ml-2 text-xs">
+                          {item.identifications_count || 0} ID
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -667,6 +684,12 @@ const ListViewMobile = ({ observations, handleClick }) => {
     }));
   };
 
+  // Fungsi untuk mendapatkan title attribute berdasarkan taxonomyLevel
+  const getTaxonomyTitle = (item) => {
+    if (!item.taxonomyLevel) return '';
+    return `${item.taxonomyLevel.charAt(0).toUpperCase() + item.taxonomyLevel.slice(1)}: ${item.title}`;
+  };
+
   const sortedObservations = [...observations].sort((a, b) => {
     if (!a[sortConfig.key] || !b[sortConfig.key]) return 0;
     const dateA = new Date(a[sortConfig.key]);
@@ -675,109 +698,118 @@ const ListViewMobile = ({ observations, handleClick }) => {
   });
 
   return (
-    <div className="md:hidden px-2">
-      {/* Sort Controls */}
-      <div className="flex gap-4 mb-4 p-3 bg-[#1e1e1e] rounded-lg shadow-md">
-        <SortableHeader
-          title="Tgl Observasi"
-          sortKey="observation_date"
-          currentSort={sortConfig}
-          onSort={handleSort}
-          className="text-sm text-gray-300"
-        />
-        <SortableHeader
-          title="Tgl Upload"
-          sortKey="created_at"
-          currentSort={sortConfig}
-          onSort={handleSort}
-          className="text-sm text-gray-300"
-        />
+    <div className="md:hidden px-4 pb-16">
+      <div className="flex justify-between items-center mb-4">
+        <div className="text-gray-300 text-sm">
+          Urut berdasarkan:
+        </div>
+        <div className="flex gap-4">
+          <SortableHeader
+            title="Tgl Observasi"
+            sortKey="observation_date"
+            currentSort={sortConfig}
+            onSort={handleSort}
+            className="text-sm text-gray-300"
+          />
+          <SortableHeader
+            title="Tgl Upload"
+            sortKey="created_at"
+            currentSort={sortConfig}
+            onSort={handleSort}
+            className="text-sm text-gray-300"
+          />
+        </div>
       </div>
+      
+      <div className="space-y-4">
+        {sortedObservations.map((item, index) => {
+          const imagesCount = Array.isArray(item.images) 
+            ? item.images.length 
+            : (item.image ? 1 : 0);
+          
+          const firstImageUrl = Array.isArray(item.images) 
+            ? (item.images[0]?.url || item.images[0]) 
+            : (item.image || getDefaultImage(item.type));
 
-      {/* Cards */}
-      {sortedObservations
-        .map((item, index) => (
-          <div 
-            key={index}
-            onClick={() => handleClick(item)}
-            className="bg-[#1e1e1e] rounded-lg shadow-md mb-3 overflow-hidden"
-          >
-            <div className="flex items-start p-3 gap-3">
-              {/* Thumbnail dan Badges */}
-              <div className="relative flex-shrink-0">
-                <div className="w-20 h-20 rounded-lg overflow-hidden bg-[#121212] border border-[#444]">
+          return (
+            <div 
+              key={index}
+              onClick={() => handleClick(item)}
+              className="bg-[#1e1e1e] rounded-lg overflow-hidden shadow-md cursor-pointer"
+            >
+              <div className="flex items-center p-3 border-b border-[#444]">
+                <div className="relative w-20 h-20 flex-shrink-0">
                   <img 
-                    src={item.images?.[0]?.url || item.image || getDefaultImage(item.type)}
-                    alt={item.title} 
-                    className={`w-full h-full ${
-                      (item.images?.[0]?.url || item.image || '').includes('/assets/icon/') 
+                    src={firstImageUrl}
+                    alt=""
+                    className={`w-full h-full rounded-lg ${
+                      firstImageUrl && typeof firstImageUrl === 'string' && firstImageUrl.includes('/assets/icon/') 
                         ? 'object-contain p-2' 
                         : 'object-cover'
                     }`}
-                    loading={index < 10 ? "eager" : "lazy"}
+                    loading={index < 5 ? "eager" : "lazy"}
                     onError={(e) => {
                       e.target.src = getDefaultImage(item.type);
                     }}
                   />
-                </div>
-                {item.images?.length > 1 && (
-                  <div className="absolute -top-1 -right-1 bg-[#1a73e8] text-white text-xs px-1.5 rounded-full">
-                    {item.images.length}
-                  </div>
-                )}
-                {item.spectrogram && (
-                  <div className="absolute -bottom-1 -right-1 bg-[#1a73e8] text-white p-1 rounded-full shadow-md">
-                    <FontAwesomeIcon icon={faPlay} className="text-xs" />
-                  </div>
-                )}
-              </div>
-
-              {/* Informasi Utama */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-medium text-white truncate">{item.title}</h3>
-                    <p className="text-sm text-gray-400 italic mt-0.5">
-                      {extractScientificName(item.species) || item.nameLat || '-'}
-                    </p>
-                  </div>
-                  <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium ${
-                    item.quality.grade.toLowerCase() === 'research grade' ? 'bg-green-900/70 text-green-300' :
-                    item.quality.grade.toLowerCase() === 'confirmed id' ? 'bg-blue-900/70 text-blue-300' :
-                    item.quality.grade.toLowerCase() === 'needs id' ? 'bg-yellow-900/70 text-yellow-300' :
-                    item.quality.grade.toLowerCase() === 'low quality id' ? 'bg-orange-900/70 text-orange-300' :
-                    'bg-gray-700/70 text-gray-300'
-                  }`}>
-                    {getGradeDisplay(item.quality.grade, item.type)}
-                  </span>
-                </div>
-
-                {/* Observer dan Lokasi */}
-                <div className="mt-1 flex items-center gap-2 text-sm">
-                  <Link 
-                    to={`/profile/${item.observer_id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      window.open(`/profile/${item.observer_id}`, '_blank');
-                    }}
-                    className="text-blue-400"
-                  >
-                    {item.observer}
-                  </Link>
-                  {item.location && (
-                    <>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-gray-400 truncate">{item.location}</span>
-                    </>
+                  {imagesCount > 1 && (
+                    <div className="absolute -top-2 -right-2 bg-[#1a73e8] text-white text-xs px-2 py-1 rounded-full">
+                      {imagesCount}
+                    </div>
+                  )}
+                  {item.spectrogram && (
+                    <div className="absolute -bottom-1 -right-1 bg-[#1a73e8] text-white p-1.5 rounded-full shadow-md">
+                      <FontAwesomeIcon icon={faPlay} className="text-xs" />
+                    </div>
                   )}
                 </div>
-
-                {/* Tanggal */}
-                <div className="px-3 pb-3 text-xs text-gray-300">
-                  <div className="flex justify-between items-center">
+                <div className="ml-3 flex-1">
+                  <div 
+                    className={`font-medium text-white ${item.taxonomyLevel ? 'cursor-help' : ''}`}
+                    title={getTaxonomyTitle(item)}
+                  >
+                    {item.title}
+                  </div>
+                  <div className="text-sm text-gray-400 italic">
+                    {extractScientificName(item.species) || item.nameLat || '-'}
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      item.quality.grade.toLowerCase() === 'research grade' ? 'bg-green-900/70 text-green-300' :
+                      item.quality.grade.toLowerCase() === 'confirmed id' ? 'bg-blue-900/70 text-blue-300' :
+                      item.quality.grade.toLowerCase() === 'needs id' ? 'bg-yellow-900/70 text-yellow-300' :
+                      item.quality.grade.toLowerCase() === 'low quality id' ? 'bg-orange-900/70 text-orange-300' :
+                      'bg-gray-700/70 text-gray-300'
+                    }`}>
+                      {getGradeDisplay(item.quality.grade, item.type)}
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <FontAwesomeIcon icon={faUsers} />
+                      <span>{item.identifications_count || 0} ID</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 text-sm">
+                <div className="flex justify-between text-gray-300">
+                  <div className="flex items-center gap-1">
+                    <FontAwesomeIcon icon={faUser} className="text-gray-500" />
+                    <Link 
+                      to={`/profile/${item.observer_id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        window.open(`/profile/${item.observer_id}`, '_blank');
+                      }}
+                      className="text-blue-400 hover:text-blue-600 transition-colors"
+                    >
+                      {item.observer}
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FontAwesomeIcon icon={faCalendar} className="text-gray-500" />
                     <span>
-                      Observasi: {item.observation_date 
+                      {item.observation_date 
                         ? new Date(item.observation_date).toLocaleDateString('id-ID', {
                             day: '2-digit',
                             month: 'short',
@@ -786,60 +818,49 @@ const ListViewMobile = ({ observations, handleClick }) => {
                         : '-'
                       }
                     </span>
-                    <span>
-                      Upload: {new Date(item.created_at).toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </span>
                   </div>
                 </div>
-
-                {/* Jumlah Observasi */}
-                <div className="mt-2 flex gap-2 text-xs">
-                  {item.type === 'bird' && (
-                    <>
-                      <span className="text-green-400">{item.fobi_count || 0} FOBI</span>
-                      <span className="text-blue-400">{item.burungnesia_count || 0} Burungnesia</span>
-                    </>
-                  )}
-                  {item.type === 'butterfly' && (
-                    <>
-                      <span className="text-green-400">{item.fobi_count || 0} FOBI</span>
-                      <span className="text-purple-400">{item.kupunesia_count || 0} Kupunesia</span>
-                    </>
-                  )}
-                  {item.type === 'general' && (
-                    <span className="text-green-400">{item.fobi_count || 0} FOBI</span>
-                  )}
+                <div className="mt-2 flex items-center gap-1 text-gray-300">
+                  <FontAwesomeIcon icon={faLocationDot} className="text-gray-500" />
+                  <span>{item.location || '-'}</span>
                 </div>
-
-                {/* Icons */}
-                <div className="mt-2 flex gap-2 text-gray-400">
+                <div className="mt-2 flex flex-wrap gap-2 items-center text-gray-400">
                   {item.quality.has_media && (
-                    <FontAwesomeIcon icon={faImage} title="Has Media" />
+                    <span className="tooltip-container" title="Has Media">
+                      <FontAwesomeIcon icon={faImage} />
+                    </span>
                   )}
                   {item.quality.is_wild && (
-                    <FontAwesomeIcon icon={faDove} title="Wild" />
+                    <span className="tooltip-container" title="Wild">
+                      <FontAwesomeIcon icon={faDove} />
+                    </span>
                   )}
                   {item.quality.location_accurate && (
-                    <FontAwesomeIcon icon={faLocationDot} title="Location Accurate" />
+                    <span className="tooltip-container" title="Location Accurate">
+                      <FontAwesomeIcon icon={faLocationDot} />
+                    </span>
                   )}
                   {item.quality.needs_id && (
-                    <FontAwesomeIcon icon={faQuestion} title="Needs ID" />
+                    <span className="tooltip-container" title="Needs ID">
+                      <FontAwesomeIcon icon={faQuestion} />
+                    </span>
                   )}
                   {item.type === 'general' && item.quality.recent_evidence && (
-                    <FontAwesomeIcon icon={faCheck} title="Recent Evidence" />
+                    <span className="tooltip-container" title="Recent Evidence">
+                      <FontAwesomeIcon icon={faCheck} />
+                    </span>
                   )}
                   {item.type === 'general' && item.quality.related_evidence && (
-                    <FontAwesomeIcon icon={faLink} title="Related Evidence" />
+                    <span className="tooltip-container" title="Related Evidence">
+                      <FontAwesomeIcon icon={faLink} />
+                    </span>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -862,6 +883,16 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
   const modalRef = useRef(null);
   const isMobile = window.innerWidth <= 768;
   
+  // State untuk menampilkan/menyembunyikan kontrol pengurutan
+  const [sortVisible, setSortVisible] = useState(false);
+  const sortDropdownRef = useRef(null);
+  
+  // Tambahkan state untuk pengurutan data
+  const [sortConfig, setSortConfig] = useState({
+    key: 'created_at',
+    direction: 'desc'
+  });
+  
   // Tambahkan ref untuk menandai apakah ini adalah load pertama setelah view change
   const isInitialLoad = useRef(true);
   
@@ -876,6 +907,33 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
   
   // Tambahkan ref untuk melacak halaman sebelumnya
   const prevCurrentPage = useRef(currentPage);
+  
+  // Tambahkan fungsi untuk menangani pengurutan
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction: 
+        prevConfig.key === key 
+          ? prevConfig.direction === 'asc' 
+            ? 'desc' 
+            : 'asc'
+          : 'desc'
+    }));
+  };
+  
+  // Effect untuk menutup dropdown pengurutan saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setSortVisible(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Update prevCurrentPage setiap kali currentPage berubah
   useEffect(() => {
@@ -1364,62 +1422,109 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
     return data.map(item => {
       // Tentukan judul berdasarkan rank dan ketersediaan cname
       let title = 'Belum teridentifikasi';
+      let taxonomyLevel = ''; // Tambahkan variabel untuk menyimpan level taksonomi
       
       // Cek rank untuk menentukan judul yang tepat
       if (item?.rank) {
+        taxonomyLevel = item.rank; // Simpan level taksonomi
         // Jika ada cname, gunakan cname
         if (item[`cname_${item.rank}`]) {
           title = item[`cname_${item.rank}`];
         } 
         // Jika tidak ada cname, gunakan nama ilmiah sesuai rank
         else if (item[item.rank]) {
-          if (item.rank === 'family') {
-            title = `Family: ${item[item.rank]}`;
-          } else if (item.rank === 'genus') {
-            title = `Genus: ${item[item.rank]}`;
-          } else if (item.rank === 'species') {
+          if (item.rank === 'family' || item.rank === 'genus' || item.rank === 'species') {
             title = item[item.rank];
           } else {
-            title = `${item.rank.charAt(0).toUpperCase() + item.rank.slice(1)}: ${item[item.rank]}`;
+            title = item[item.rank];
           }
         }
       } 
       // Jika tidak ada rank, coba cari dari cname yang tersedia
       else {
-        title = item?.cname_species || 
-                item?.cname_genus || 
-                item?.cname_family || 
-                item?.cname_order || 
-                item?.species || 
-                item?.genus || 
-                item?.family || 
-                item?.order || 
-                item?.class || 
-                item?.phylum || 
-                item?.kingdom || 
-                item?.superkingdom || 
-                item?.tribe || 
-                item?.variety || 
-                item?.subspecies || 
-                item?.subgenus || 
-                item?.subfamily || 
-                item?.suborder || 
-                item?.subclass || 
-                item?.subphylum || 
-                item?.subkingdom || 
-                item?.form || 
-                item?.variety || 
-                item?.division || 
-                item?.domain || 
-                'Belum teridentifikasi';
+        // Daftar lengkap level taksonomi dari yang paling spesifik ke yang paling umum
+        const taxonomyLevels = [
+          'subform',
+          'form',
+          'variety',
+          'subspecies',
+          'species',
+          'subgenus',
+          'genus',
+          'subtribe',
+          'tribe',
+          'supertribe',
+          'subfamily',
+          'family',
+          'superfamily',
+          'infraorder',
+          'suborder',
+          'order',
+          'superorder',
+          'infraclass',
+          'subclass',
+          'class',
+          'superclass',
+          'subdivision',
+          'division',
+          'superdivision',
+          'subphylum',
+          'phylum',
+          'superphylum',
+          'subkingdom',
+          'kingdom',
+          'superkingdom',
+          'domain'
+        ];
+        
+        // Cari level taksonomi pertama yang tersedia, mulai dari yang paling spesifik
+        let foundLevel = null;
+        let foundValue = null;
+        
+        for (const level of taxonomyLevels) {
+          // Cek apakah ada common name untuk level ini
+          if (item[`cname_${level}`]) {
+            foundLevel = level;
+            foundValue = item[`cname_${level}`];
+            break;
+          }
+          // Jika tidak ada common name, cek apakah ada nama taksonomi untuk level ini
+          else if (item[level]) {
+            foundLevel = level;
+            foundValue = item[level];
+            break;
+          }
+        }
+        
+        // Jika ditemukan level taksonomi, gunakan nilai tersebut
+        if (foundLevel && foundValue) {
+          // Simpan level taksonomi yang ditemukan
+          taxonomyLevel = foundLevel;
+          // Gunakan hanya nilai taksonomi tanpa label level
+          title = foundValue;
+        } else {
+          // Jika tidak ditemukan level taksonomi, gunakan default
+          title = 'Belum teridentifikasi';
+        }
+      }
+      
+      // Pastikan images selalu berupa array
+      let images = [];
+      if (item?.images && Array.isArray(item.images)) {
+        images = item.images;
+      } else if (item?.image) {
+        // Jika hanya ada image (string), masukkan ke dalam array
+        images = [{ url: item.image }];
       }
       
       return {
         id: `${item?.id || ''}`,
         taxa_id: item?.taxa_id || '',
         media_id: item?.media_id || '',
-        image: item?.images?.[0]?.url || null,
+        image: item?.images?.[0]?.url || item?.image || null,
+        images: images, // Pastikan images selalu tersedia sebagai array
         title: title,
+        taxonomyLevel: taxonomyLevel, // Tambahkan informasi level taksonomi
         description: `Family: ${item?.family || '-'}
         Genus: ${item?.genus || '-'}
         Species: ${extractScientificName(item?.species) || '-'} 
@@ -1442,6 +1547,7 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
         type: 'general',
         source: item?.source || 'fobi',
         spectrogram: item?.spectrogram || null,
+        audioUrl: item?.audioUrl || null,
         identifications_count: item?.total_identifications || 0,
         fobi_count: item?.fobi_count || 0,
         location: formatLocation(item?.latitude, item?.longitude),
@@ -1459,76 +1565,104 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
 
   const formatBirdData = (data) => {
     if (!Array.isArray(data)) return [];
-    return data.map(item => ({
-      id: `${item?.id || ''}`,
-      fauna_id: item?.fauna_id || '',
-      image: item?.images?.[0]?.url || null,
-      title: item?.nameId || 'Belum teridentifikasi',
-      description: `${item?.nameLat || '-'}\n${item?.family || '-'}\nGrade: ${item?.grade || '-'}\n${item?.notes || '-'}`,
-      observer: item?.observer_name || 'Anonymous',
-      observer_id: item?.observer_id || '',
-      count: `${item?.count || 0} Individu`,
-      breeding: item?.breeding ? 'Breeding' : 'Non-breeding',
-      breeding_note: item?.breeding_note || '-',
-      quality: {
-        grade: item?.grade || 'casual',
-        has_media: Boolean(item?.has_media),
-        is_wild: Boolean(item?.is_wild),
-        location_accurate: Boolean(item?.location_accurate),
-        needs_id: Boolean(item?.needs_id),
-        community_level: item?.community_id_level || null
-      },
-      type: 'bird',
-      source: item?.source || 'burungnesia',
-      spectrogram: item?.spectrogram || null,
-      identifications_count: item?.total_identifications || 0,
-      burungnesia_count: item?.burungnesia_count || 0,
-      fobi_count: item?.fobi_count || 0,
-      created_at: item?.created_at || new Date(0).toISOString(),
-      observation_date: item?.observation_date || '',
-      location: formatLocation(item?.latitude, item?.longitude),
-      locationData: {
-        latitude: parseFloat(item?.latitude),
-        longitude: parseFloat(item?.longitude)
-      },
-    }));
+    return data.map(item => {
+      // Pastikan images selalu berupa array
+      let images = [];
+      if (item?.images && Array.isArray(item.images)) {
+        images = item.images;
+      } else if (item?.image) {
+        // Jika hanya ada image (string), masukkan ke dalam array
+        images = [{ url: item.image }];
+      }
+      
+      return {
+        id: `${item?.id || ''}`,
+        fauna_id: item?.fauna_id || '',
+        image: item?.images?.[0]?.url || item?.image || null,
+        images: images, // Pastikan images selalu tersedia sebagai array
+        title: item?.nameId || 'Belum teridentifikasi',
+        taxonomyLevel: 'species', // Tambahkan taxonomyLevel untuk bird data
+        description: `${item?.nameLat || '-'}\n${item?.family || '-'}\nGrade: ${'checklist burungnesia' || '-'}\n${item?.notes || '-'}`,
+        observer: item?.observer_name || 'Anonymous',
+        observer_id: item?.observer_id || '',
+        count: `${item?.count || 0} Individu`,
+        breeding: item?.breeding ? 'Breeding' : 'Non-breeding',
+        breeding_note: item?.breeding_note || '-',
+        quality: {
+          grade: 'checklist burungnesia' || 'casual',
+          has_media: Boolean(item?.has_media),
+          is_wild: Boolean(item?.is_wild),
+          location_accurate: Boolean(item?.location_accurate),
+          needs_id: Boolean(item?.needs_id),
+          community_level: item?.community_id_level || null
+        },
+        type: 'bird',
+        source: item?.source || 'burungnesia',
+        spectrogram: item?.spectrogram || null,
+        audioUrl: item?.audioUrl || null,
+        identifications_count: item?.total_identifications || 0,
+        burungnesia_count: item?.burungnesia_count || 0,
+        fobi_count: item?.fobi_count || 0,
+        created_at: item?.created_at || new Date(0).toISOString(),
+        observation_date: item?.observation_date || '',
+        location: formatLocation(item?.latitude, item?.longitude),
+        locationData: {
+          latitude: parseFloat(item?.latitude),
+          longitude: parseFloat(item?.longitude)
+        },
+      };
+    });
   };
 
   const formatButterflyData = (data) => {
     if (!Array.isArray(data)) return [];
-    return data.map(item => ({
-      id: `${item?.id || ''}`,
-      fauna_id: item?.fauna_id || '',
-      image: item?.images?.[0]?.url || null,
-      title: item?.nameId || 'Belum teridentifikasi',
-      description: `${item?.nameLat || '-'}\n${item?.family || '-'}\nGrade: ${item?.grade || '-'}\n${item?.notes || '-'}`,
-      observer: item?.observer_name || 'Anonymous',
-      observer_id: item?.observer_id || '',
-      count: `${item?.count || 0} Individu`,
-      breeding: item?.breeding ? 'Breeding' : 'Non-breeding',
-      breeding_note: item?.breeding_note || '-',
-      quality: {
-        grade: item?.grade || 'casual',
-        has_media: Boolean(item?.has_media),
-        is_wild: Boolean(item?.is_wild),
-        location_accurate: Boolean(item?.location_accurate),
-        needs_id: Boolean(item?.needs_id),
-        community_level: item?.community_id_level || null
-      },
-      type: 'butterfly',
-      source: item?.source || 'kupunesia',
-      spectrogram: item?.spectrogram || null,
-      identifications_count: item?.total_identifications || 0,
-      kupunesia_count: item?.kupunesia_count || 0,
-      fobi_count: item?.fobi_count || 0,
-      created_at: item?.created_at || new Date(0).toISOString(),
-      observation_date: item?.observation_date || '',
-      location: formatLocation(item?.latitude, item?.longitude),
-      locationData: {
-        latitude: parseFloat(item?.latitude),
-        longitude: parseFloat(item?.longitude)
-      },
-    }));
+    return data.map(item => {
+      // Pastikan images selalu berupa array
+      let images = [];
+      if (item?.images && Array.isArray(item.images)) {
+        images = item.images;
+      } else if (item?.image) {
+        // Jika hanya ada image (string), masukkan ke dalam array
+        images = [{ url: item.image }];
+      }
+      
+      return {
+        id: `${item?.id || ''}`,
+        fauna_id: item?.fauna_id || '',
+        image: item?.images?.[0]?.url || item?.image || null,
+        images: images, // Pastikan images selalu tersedia sebagai array
+        title: item?.nameId || 'Belum teridentifikasi',
+        taxonomyLevel: 'species', // Tambahkan taxonomyLevel untuk butterfly data
+        description: `${item?.nameLat || '-'}\n${item?.family || '-'}\nGrade: ${'checklist kupunesia' || '-'}\n${item?.notes || '-'}`,
+        observer: item?.observer_name || 'Anonymous',
+        observer_id: item?.observer_id || '',
+        count: `${item?.count || 0} Individu`,
+        breeding: item?.breeding ? 'Breeding' : 'Non-breeding',
+        breeding_note: item?.breeding_note || '-',
+        quality: {
+          grade: 'checklist kupunesia' || 'casual',
+          has_media: Boolean(item?.has_media),
+          is_wild: Boolean(item?.is_wild),
+          location_accurate: Boolean(item?.location_accurate),
+          needs_id: Boolean(item?.needs_id),
+          community_level: item?.community_id_level || null
+        },
+        type: 'butterfly',
+        source: item?.source || 'kupunesia',
+        spectrogram: item?.spectrogram || null,
+        audioUrl: item?.audioUrl || null,
+        identifications_count: item?.total_identifications || 0,
+        kupunesia_count: item?.kupunesia_count || 0,
+        fobi_count: item?.fobi_count || 0,
+        created_at: item?.created_at || new Date(0).toISOString(),
+        observation_date: item?.observation_date || '',
+        location: formatLocation(item?.latitude, item?.longitude),
+        locationData: {
+          latitude: parseFloat(item?.latitude),
+          longitude: parseFloat(item?.longitude)
+        },
+      };
+    });
   };
 
   const handleMobileClick = (item) => {
@@ -1588,6 +1722,14 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
     window.open(path, '_blank');
   };
 
+  // Urutkan data observasi sesuai dengan sortConfig
+  const sortedObservations = [...observations].sort((a, b) => {
+    if (!a[sortConfig.key] || !b[sortConfig.key]) return 0;
+    const dateA = new Date(a[sortConfig.key]);
+    const dateB = new Date(b[sortConfig.key]);
+    return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+
   // Modifikasi tampilan loading dan error
   if (loading && currentPage === 1) {
   return (
@@ -1635,6 +1777,43 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
 
   return (
     <>
+      {/* Tambahkan kontrol pengurutan untuk tampilan grid di desktop */}
+      {view === 'grid' && (
+        <div className="hidden md:block relative mb-4 px-4">
+          <div className="flex items-center">
+            <button 
+              onClick={() => setSortVisible(prev => !prev)}
+              className="bg-[#1e1e1e] hover:bg-[#2c2c2c] text-gray-300 p-2 rounded-lg border border-[#444] flex items-center gap-2 text-sm"
+            >
+              <FontAwesomeIcon icon={faSort} />
+              <span>Urutkan</span>
+            </button>
+            
+            {sortVisible && (
+              <div ref={sortDropdownRef} className="absolute top-full left-4 mt-2 bg-[#1e1e1e] border border-[#444] rounded-lg p-3 shadow-lg z-10">
+                <div className="mb-2 text-gray-300 text-sm font-medium">Urut berdasarkan:</div>
+                <div className="flex flex-col gap-3">
+                  <SortableHeader
+                    title="Tgl Observasi"
+                    sortKey="observation_date"
+                    currentSort={sortConfig}
+                    onSort={handleSort}
+                    className="text-sm text-gray-300"
+                  />
+                  <SortableHeader
+                    title="Tgl Upload"
+                    sortKey="created_at"
+                    currentSort={sortConfig}
+                    onSort={handleSort}
+                    className="text-sm text-gray-300"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Desktop View */}
       {view === 'grid' ? (
         <div className="hidden md:grid gap-3 px-4 mx-auto mb-16
@@ -1642,7 +1821,7 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
           lg:grid-cols-4 lg:max-w-6xl 
           xl:grid-cols-5 xl:max-w-7xl
           2xl:grid-cols-6 2xl:max-w-[90rem]">
-          {observations.map((item, index) => (
+          {sortedObservations.map((item, index) => (
             <Card 
               key={index} 
               item={item} 
@@ -1660,79 +1839,115 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
       {/* Mobile View */}
       <div className="md:hidden">
         {view === 'grid' ? (
-          <div className="grid grid-cols-2 gap-2 px-2 sm:grid-cols-3">
-            {observations.map((item, index) => (
-              <div key={index} className="card relative rounded-md overflow-hidden">
-                <div
-                  className="cursor-pointer aspect-square relative"
-                  onClick={() => handleMobileClick(item)}
-                >
-                  {item.spectrogram ? (
-                    <div className="w-full h-full">
-                      <SpectrogramPlayer
-                        spectrogramUrl={item.spectrogram}
-                        audioUrl={item.audioUrl}
-                      />
+          <>
+            {/* Tambahkan kontrol pengurutan untuk tampilan grid di mobile */}
+            <div className="flex justify-between items-center mb-4 px-4">
+              <div className="text-gray-300 text-sm">
+                Urut berdasarkan:
+              </div>
+              <div className="flex gap-4">
+                <SortableHeader
+                  title="Tgl Observasi"
+                  sortKey="observation_date"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                  className="text-sm text-gray-300"
+                />
+                <SortableHeader
+                  title="Tgl Upload"
+                  sortKey="created_at"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                  className="text-sm text-gray-300"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 px-2 sm:grid-cols-3">
+              {sortedObservations.map((item, index) => (
+                <div key={index} className="card relative rounded-md overflow-hidden">
+                  <div
+                    className="cursor-pointer aspect-square relative"
+                    onClick={() => handleMobileClick(item)}
+                  >
+                    {item.spectrogram ? (
+                      <div className="w-full h-full">
+                        <SpectrogramPlayer
+                          spectrogramUrl={item.spectrogram}
+                          audioUrl={item.audioUrl}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full bg-[#121212]">
+                                            {/* Indikator jumlah media untuk mobile */}
+                    {item.images && Array.isArray(item.images) && item.images.length > 1 && (
+                      <div className="absolute top-0 right-2 text-white text-xs px-1 py-1 rounded-full flex items-center gap-1 z-20">
+                        <FontAwesomeIcon icon={faImage} className="text-xs" />
+                        <span>{item.images.length}</span>
+                      </div>
+                    )}
+
+                        <img 
+                          src={item.images?.[0]?.url || item.image || getDefaultImage(item.type)}
+                          alt={item.title} 
+                          className={`w-full h-full ${
+                            (item.images?.[0]?.url || item.image || '') && 
+                            typeof (item.images?.[0]?.url || item.image || '') === 'string' && 
+                            (item.images?.[0]?.url || item.image || '').includes('/assets/icon/') 
+                              ? 'object-contain p-4' 
+                              : 'object-cover'
+                          }`}
+                          loading={index < 10 ? "eager" : "lazy"}
+                          onError={(e) => {
+                            e.target.src = getDefaultImage(item.type);
+                          }}
+                        />
+                      </div>
+                    )}
+                    
+                    
+                    <div className="absolute top-1 left-1 right-1">
+                      <span className="text-[10px] line-clamp-2 text-white font-medium drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                        {item.title}
+                      </span>
                     </div>
-                  ) : (
-                    <div className="w-full h-full bg-[#121212]">
-                      <img 
-                        src={item.images?.[0]?.url || item.image || getDefaultImage(item.type)}
-                        alt={item.title} 
-                        className={`w-full h-full ${
-                          (item.images?.[0]?.url || item.image || '').includes('/assets/icon/') 
-                            ? 'object-contain p-4' 
-                            : 'object-cover'
-                        }`}
-                        loading={index < 10 ? "eager" : "lazy"}
-                        onError={(e) => {
-                          e.target.src = getDefaultImage(item.type);
-                        }}
-                      />
-                    </div>
-                  )}
-                  <div className="absolute top-1 left-1 right-1">
-                    <span className="text-[10px] line-clamp-2 text-white font-medium drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-                      {item.title}
+                  </div>
+
+                  <div className="absolute bottom-1 left-1">
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full text-white ${
+                      item.quality.grade.toLowerCase() === 'research grade' ? 'bg-green-500/70' :
+                      item.quality.grade.toLowerCase() === 'confirmed id' ? 'bg-blue-500/70' :
+                      item.quality.grade.toLowerCase() === 'needs id' ? 'bg-yellow-500/70' :
+                      item.quality.grade.toLowerCase() === 'low quality id' ? 'bg-orange-500/70' :
+                      item.type === 'bird' ? 'bg-blue-500/70' :
+                      item.type === 'butterfly' ? 'bg-purple-500/70' :
+                      'bg-green-500/70'
+                    }`}>
+                      {getGradeDisplay(item.quality.grade, item.type)}
                     </span>
                   </div>
-                </div>
 
-                <div className="absolute bottom-1 left-1">
-                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full text-white ${
-                    item.quality.grade.toLowerCase() === 'research grade' ? 'bg-green-500/70' :
-                    item.quality.grade.toLowerCase() === 'confirmed id' ? 'bg-blue-500/70' :
-                    item.quality.grade.toLowerCase() === 'needs id' ? 'bg-yellow-500/70' :
-                    item.quality.grade.toLowerCase() === 'low quality id' ? 'bg-orange-500/70' :
-                    item.type === 'bird' ? 'bg-blue-500/70' :
-                    item.type === 'butterfly' ? 'bg-purple-500/70' :
-                    'bg-green-500/70'
-                  }`}>
-                    {getGradeDisplay(item.quality.grade, item.type)}
-                  </span>
-                </div>
+                  <button
+                    onClick={() => toggleDescription(index)}
+                    className="absolute bottom-1 right-1 bg-black/50 hover:bg-black/70 text-white w-5 h-5 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <FontAwesomeIcon icon={faInfo} className="text-[8px]" />
+                  </button>
 
-                <button
-                  onClick={() => toggleDescription(index)}
-                  className="absolute bottom-1 right-1 bg-black/50 hover:bg-black/70 text-white w-5 h-5 rounded-full flex items-center justify-center transition-colors"
-                >
-                  <FontAwesomeIcon icon={faInfo} className="text-[8px]" />
-                </button>
-
-                {visibleIndex === index && (
-                  <div className="absolute inset-0 bg-black/90 text-white p-3 text-xs overflow-y-auto">
-                    <div className="space-y-2">
-                      <p className="font-medium">{item.title}</p>
-                      <p className="whitespace-pre-line text-gray-300">{item.description}</p>
-                      <p className="text-gray-300">Observer: {item.observer}</p>
-                      {item.breeding && <p className="text-gray-300">{item.breeding}</p>}
-                      {item.count && <p className="text-gray-300">{item.count}</p>}
+                  {visibleIndex === index && (
+                    <div className="absolute inset-0 bg-black/90 text-white p-3 text-xs overflow-y-auto">
+                      <div className="space-y-2">
+                        <p className="font-medium">{item.title}</p>
+                        <p className="whitespace-pre-line text-gray-300">{item.description}</p>
+                        <p className="text-gray-300">Observer: {item.observer}</p>
+                        {item.breeding && <p className="text-gray-300">{item.breeding}</p>}
+                        {item.count && <p className="text-gray-300">{item.count}</p>}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <ListViewMobile 
             observations={observations}
@@ -1740,11 +1955,6 @@ const GridView = ({ searchParams, filterParams = defaultFilterParams, view = 'gr
           />
         )}
       </div>
-
-      {/* Info jumlah data untuk debug
-      <div className="text-center text-sm text-gray-600 mt-4">
-        Menampilkan {observations.length} dari {totalItems} data
-      </div> */}
 
       {/* Loading More Indicator */}
       {hasMore && (

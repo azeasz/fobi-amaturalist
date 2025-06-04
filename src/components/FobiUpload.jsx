@@ -131,24 +131,48 @@ const [showSuggestions, setShowSuggestions] = useState(false);
 
  const handleFaunaNameChange = async (name) => {
     setFaunaName(name);
-    // Reset fauna_id ketika input berubah
     setFaunaId('');
     
     if (name.length > 2) {
         setIsSearching(true);
         try {
-            const response = await apiFetch(`/faunas?name=${encodeURIComponent(name)}`, {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                throw new Error('Token tidak ditemukan');
+            }
+            
+            // Gunakan endpoint taxonomy/birds/search terlebih dahulu
+            const response = await apiFetch(`/taxonomy/birds/search?q=${encodeURIComponent(name)}`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
             
-            if (!response.ok) throw new Error('Gagal mengambil data fauna');
+            if (!response.ok) throw new Error('Gagal mengambil data burung');
             
             const data = await response.json();
-            if (data.success) {
-                setSuggestions(data.data);
+            if (data.success && data.data.length > 0) {
+                // Urutkan hasil pencarian berdasarkan kecocokan dengan input pengguna
+                const sortedResults = sortSearchResults(data.data, name);
+                setSuggestions(sortedResults);
                 setShowSuggestions(true);
+            } else {
+                // Fallback ke endpoint lama jika tidak ada hasil
+                const fallbackResponse = await apiFetch(`/faunas?name=${encodeURIComponent(name)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!fallbackResponse.ok) throw new Error('Gagal mengambil data burung');
+                
+                const fallbackData = await fallbackResponse.json();
+                if (fallbackData.success) {
+                    // Urutkan hasil pencarian fallback
+                    const sortedFallbackResults = sortSearchResults(fallbackData.data, name);
+                    setSuggestions(sortedFallbackResults);
+                    setShowSuggestions(true);
+                }
             }
         } catch (error) {
             console.error('Error:', error);
@@ -162,9 +186,88 @@ const [showSuggestions, setShowSuggestions] = useState(false);
     }
 };
 
+// Fungsi untuk mengurutkan hasil pencarian berdasarkan kecocokan
+const sortSearchResults = (results, query) => {
+    const lowerQuery = query.toLowerCase();
+    
+    return results.sort((a, b) => {
+        // Prioritaskan hasil yang memiliki kecocokan di awal nama
+        const aNameId = (a.nameId || '').toLowerCase();
+        const bNameId = (b.nameId || '').toLowerCase();
+        const aNameLat = (a.nameLat || '').toLowerCase();
+        const bNameLat = (b.nameLat || '').toLowerCase();
+        const aDisplayName = (a.displayName || '').toLowerCase();
+        const bDisplayName = (b.displayName || '').toLowerCase();
+        
+        // Jika nama persis sama dengan query, prioritaskan tertinggi
+        const aExactMatch = aNameId === lowerQuery || aDisplayName === lowerQuery;
+        const bExactMatch = bNameId === lowerQuery || bDisplayName === lowerQuery;
+        
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+        
+        // Periksa kecocokan di awal nama (exact match di awal)
+        const aStartsWithQuery = 
+            aNameId.startsWith(lowerQuery) || 
+            aNameLat.startsWith(lowerQuery) || 
+            aDisplayName.startsWith(lowerQuery);
+            
+        const bStartsWithQuery = 
+            bNameId.startsWith(lowerQuery) || 
+            bNameLat.startsWith(lowerQuery) || 
+            bDisplayName.startsWith(lowerQuery);
+            
+        if (aStartsWithQuery && !bStartsWithQuery) return -1;
+        if (!aStartsWithQuery && bStartsWithQuery) return 1;
+        
+        // Jika keduanya cocok di awal atau keduanya tidak cocok di awal,
+        // periksa kecocokan di tengah nama (contains)
+        const aContainsQuery = 
+            aNameId.includes(lowerQuery) || 
+            aNameLat.includes(lowerQuery) || 
+            aDisplayName.includes(lowerQuery);
+            
+        const bContainsQuery = 
+            bNameId.includes(lowerQuery) || 
+            bNameLat.includes(lowerQuery) || 
+            bDisplayName.includes(lowerQuery);
+            
+        if (aContainsQuery && !bContainsQuery) return -1;
+        if (!aContainsQuery && bContainsQuery) return 1;
+        
+        // Jika keduanya memiliki kecocokan yang sama, urutkan berdasarkan panjang nama
+        // (nama yang lebih pendek biasanya lebih relevan)
+        const aNameLength = Math.min(
+            aNameId.length || Infinity, 
+            aNameLat.length || Infinity, 
+            aDisplayName.length || Infinity
+        );
+        
+        const bNameLength = Math.min(
+            bNameId.length || Infinity, 
+            bNameLat.length || Infinity, 
+            bDisplayName.length || Infinity
+        );
+        
+        return aNameLength - bNameLength;
+    });
+};
+
 const handleSelectFauna = (fauna) => {
-    setFaunaName(fauna.nameId); // Hanya tampilkan nama Indonesia
-    setFaunaId(parseInt(fauna.id)); // Pastikan id disimpan sebagai integer
+    // Tentukan tampilan nama berdasarkan ketersediaan displayName
+    let displayName = '';
+    
+    if (fauna.displayName) {
+        displayName = fauna.displayName;
+    } else if (fauna.nameId) {
+        displayName = fauna.nameId;
+    } else if (fauna.nameLat) {
+        displayName = fauna.nameLat;
+    }
+    
+    // Tidak perlu menambahkan informasi taksonomi di tampilan nama
+    setFaunaName(displayName);
+    setFaunaId(parseInt(fauna.id));
     setShowSuggestions(false);
 };
 const handleInputChange = (e) => {
@@ -1191,12 +1294,19 @@ const handleInputChange = (e) => {
                     <div className="absolute z-50 w-full bg-[#2c2c2c] border border-[#444] rounded-md shadow-lg max-h-60 overflow-y-auto">
                         {suggestions.map((fauna) => (
                             <div
-                                key={fauna.id}
+                                key={`${fauna.id}_${fauna.taxa_id || ''}`}
                                 className="px-4 py-2 hover:bg-[#1a73e8] hover:bg-opacity-10 cursor-pointer flex flex-col"
                                 onClick={() => handleSelectFauna(fauna)}
                             >
-                                <span className="font-medium text-white">{fauna.nameId}</span>
-                                <span className="text-sm text-gray-300">{fauna.nameLat}</span>
+                                <div className="flex items-center">
+                                    <span className="font-medium text-white">{fauna.nameId}</span>
+                                    {fauna.taxon_rank && (
+                                        <span className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 ml-2 rounded-full">
+                                            {fauna.taxon_rank.toLowerCase()}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-sm text-gray-300 italic">{fauna.nameLat}</span>
                             </div>
                         ))}
                     </div>

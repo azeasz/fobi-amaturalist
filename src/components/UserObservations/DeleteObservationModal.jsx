@@ -5,6 +5,17 @@ import { faExclamationTriangle, faSpinner } from '@fortawesome/free-solid-svg-ic
 const DeleteObservationModal = ({ show, onClose, onConfirm, isDeleting, observation }) => {
   if (!show) return null;
   
+  // Fungsi untuk mendapatkan label sumber data
+  const getSourceLabel = (source) => {
+    if (source === 'burungnesia') {
+      return 'Burungnesia';
+    } else if (source === 'kupunesia') {
+      return 'Kupunesia';
+    } else {
+      return 'FOBI';
+    }
+  };
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
       <div className="bg-[#1e1e1e] rounded-lg shadow-lg max-w-md w-full border border-[#444] overflow-hidden">
@@ -19,6 +30,11 @@ const DeleteObservationModal = ({ show, onClose, onConfirm, isDeleting, observat
           <p className="text-[#e0e0e0] mb-4">
             Apakah Anda yakin ingin menghapus observasi <span className="italic font-medium">"{observation?.scientific_name}"</span>?
           </p>
+          {observation?.source && (
+            <p className="text-[#aaa] text-sm mb-2">
+              Sumber: <span className="font-medium">{getSourceLabel(observation.source)}</span>
+            </p>
+          )}
           <p className="text-[#aaa] text-sm mb-4">
             Tindakan ini tidak dapat dibatalkan dan semua data terkait observasi ini akan dihapus permanen.
           </p>

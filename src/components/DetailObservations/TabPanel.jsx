@@ -12,7 +12,8 @@ import {
     faAt,
     faChevronDown,
     faChevronUp,
-    faInfoCircle
+    faInfoCircle,
+    faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import 'react-quill/dist/quill.snow.css';
 import { apiFetch } from '../../utils/api';
@@ -95,6 +96,8 @@ function TabPanel({
 
     // State untuk menampung semua konten (identifikasi + komentar) yang telah digabung
     const [combinedContent, setCombinedContent] = useState([]);
+    const [iucnStatus, setIucnStatus] = useState(null);
+    const [loadingIucn, setLoadingIucn] = useState(false);
 
     // Fungsi untuk menggabungkan dan mengurutkan identifikasi dan komentar
     const combineAndSortContent = useCallback(() => {
@@ -460,11 +463,6 @@ function TabPanel({
     }, [navigate]);
 
     const getTaxonomyLevel = (taxon) => {
-        // Kasus khusus untuk division/phylum
-        if (!taxon.phylum && taxon.division) {
-            return `${taxon.division} (Phylum)`;
-        }
-
         // Daftar lengkap level taksonomi dari yang paling spesifik ke yang paling umum
         const taxonomyLevels = [
             'subform',
@@ -489,7 +487,7 @@ function TabPanel({
             'class',
             'superclass',
             'subdivision',
-            'division',
+            'division', // Jangan prioritaskan division untuk plantae
             'superdivision',
             'subphylum',
             'phylum',
@@ -500,10 +498,27 @@ function TabPanel({
             'domain'
         ];
 
+        // Kasus khusus: jika ini adalah spesies dengan kingdom Plantae, prioritaskan level taksonomi standar
+        if (taxon.species && taxon.kingdom === 'Plantae') {
+            // Untuk Plantae, gunakan level spesies, genus, family, order, class, phylum (bukan division)
+            // Cek level taksonomi dari yang paling spesifik ke yang paling umum untuk plantae
+            if (taxon.species) return `${taxon.species} (Species)`;
+            if (taxon.genus) return `${taxon.genus} (Genus)`;
+            if (taxon.family) return `${taxon.family} (Family)`;
+            if (taxon.order) return `${taxon.order} (Order)`;
+            if (taxon.class) return `${taxon.class} (Class)`;
+            if (taxon.phylum) return `${taxon.phylum} (Phylum)`;
+            if (taxon.division) return `${taxon.division} (Division)`;
+        }
+
         // Cari level taksonomi pertama yang tersedia
         for (const level of taxonomyLevels) {
             if (taxon[level]) {
                 const displayName = level.charAt(0).toUpperCase() + level.slice(1);
+                // Jika level adalah division dan kingdom adalah Plantae, tampilkan sebagai Division
+                if (level === 'division' && taxon.kingdom === 'Plantae') {
+                    return `${taxon[level]} (Division)`;
+                }
                 return `${taxon[level]} (${displayName})`;
             }
         }
@@ -687,6 +702,34 @@ function TabPanel({
         
         // Kasus khusus untuk division/phylum
         if (!taxon.phylum && taxon.division) {
+            // Jika ini adalah kingdom Plantae, prioritaskan level taksonomi lain
+            if (taxon.kingdom && taxon.kingdom.toLowerCase() === 'plantae') {
+                // Cek apakah ada level taksonomi yang lebih spesifik
+                const plantaeLevels = [
+                    { key: 'species', commonKey: 'cname_species' },
+                    { key: 'genus', commonKey: 'cname_genus' },
+                    { key: 'family', commonKey: 'cname_family' },
+                    { key: 'order', commonKey: 'cname_order' },
+                    { key: 'class', commonKey: 'cname_class' }
+                ];
+                
+                for (const { key, commonKey } of plantaeLevels) {
+                    if (taxon[key]) {
+                        const needsItalic = ['family', 'genus', 'species'].includes(key);
+                        if (taxon[commonKey]) {
+                            return (
+                                <React.Fragment>
+                                    <span className={needsItalic ? 'italic' : ''}>{taxon[key]}</span> 
+                                    <span className="text-xs text-gray-400 font-normal ml-2">({taxon[commonKey]})</span>
+                                </React.Fragment>
+                            );
+                        }
+                        return <span className={needsItalic ? 'italic' : ''}>{taxon[key]}</span>;
+                    }
+                }
+            }
+            
+            // Jika bukan Plantae atau tidak ada level yang lebih spesifik, tampilkan division
             if (taxon.cname_division) {
                 return (
                     <React.Fragment>
@@ -746,7 +789,7 @@ function TabPanel({
                             <span className="text-xs text-gray-400 font-normal ml-2">({taxon[commonKey]})</span>
                         </React.Fragment>
                     );
-                }
+                } 
                 // Coba cari common name di format lain jika ada
                 else if (key === 'species' && taxon.common_name) {
                     return (
@@ -853,7 +896,7 @@ function TabPanel({
             const countB = parseInt(b.agreement_count) || 0;
             return countB - countA;
         });
-
+        
         return {
             ...sortedByAgreements[0],
             isSystemIdentification: false
@@ -2077,6 +2120,127 @@ function TabPanel({
         );
     };
 
+    // Fungsi untuk mengambil status IUCN langsung dari API IUCN Red List
+    const fetchIUCNStatus = useCallback(async (scientificName) => {
+        if (!scientificName) return null;
+        
+        // Periksa grade observasi - hanya ambil status IUCN jika research grade
+        if (checklist?.grade !== 'research grade') {
+            console.log('Skipping IUCN status fetch: Not research grade');
+            return null;
+        }
+        
+        try {
+            setLoadingIucn(true);
+            
+            // Gunakan backend sebagai proxy untuk menghindari masalah CORS
+            const response = await apiFetch(`/observations/iucn-status?scientific_name=${encodeURIComponent(scientificName)}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            // Periksa apakah response valid
+            if (!response || !response.ok) {
+                throw new Error(`HTTP error! status: ${response?.status || 'unknown'}`);
+            }
+            
+            // Ambil teks respons terlebih dahulu
+            const responseText = await response.text();
+            
+            // Periksa apakah respons kosong
+            if (!responseText || responseText.trim() === '') {
+                console.warn('Empty response from IUCN API');
+                return null;
+            }
+            
+            // Coba parse JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError, 'Response text:', responseText.substring(0, 100));
+                throw new Error(`Invalid JSON response: ${parseError.message}`);
+            }
+            
+            // Periksa struktur data
+            if (!data || typeof data !== 'object') {
+                console.warn('Invalid data structure from IUCN API', data);
+                return null;
+            }
+            
+            if (data.success && data.data && data.data.iucn_status) {
+                setIucnStatus(data.data.iucn_status);
+                return data.data.iucn_status;
+            }
+            
+            setIucnStatus(null);
+            return null;
+        } catch (error) {
+            console.error('Error fetching IUCN status:', error);
+            // Tampilkan pesan error yang lebih informatif
+            toast.error(`Gagal mengambil status IUCN: ${error.message}`, {
+                duration: 3000,
+                position: 'bottom-center'
+            });
+            setIucnStatus(null);
+            return null;
+        } finally {
+            setLoadingIucn(false);
+        }
+    }, [checklist?.grade]);
+
+    // Cek status IUCN ketika identifikasi berubah atau checklist diload
+    useEffect(() => {
+        const currentId = getCurrentIdentification();
+        if (currentId && currentId.scientific_name && checklist?.grade === 'research grade') {
+            // Cek apakah sudah ada status IUCN dari backend
+            if (checklist?.iucn_status) {
+                setIucnStatus(checklist.iucn_status);
+            } else {
+                // Jika tidak ada, ambil dari API
+                fetchIUCNStatus(currentId.scientific_name);
+            }
+        }
+    }, [identifications, checklist, fetchIUCNStatus]);
+
+    // Fungsi untuk mendapatkan warna dan label berdasarkan status IUCN
+    const getIUCNStatusDisplay = (status) => {
+        if (!status) return null;
+        
+        const statusLower = status.toLowerCase();
+        let bgColor = 'bg-green-900';
+        let textColor = 'text-green-200';
+        let ringColor = 'ring-green-600/40';
+        
+        if (statusLower.includes('extinct')) {
+            bgColor = 'bg-black';
+            textColor = 'text-gray-200';
+            ringColor = 'ring-gray-600/40';
+        } else if (statusLower.includes('critically') || statusLower.includes('endangered')) {
+            bgColor = 'bg-red-900';
+            textColor = 'text-red-200';
+            ringColor = 'ring-red-600/40';
+        } else if (statusLower.includes('vulnerable')) {
+            bgColor = 'bg-orange-900';
+            textColor = 'text-orange-200';
+            ringColor = 'ring-orange-600/40';
+        } else if (statusLower.includes('near') || statusLower.includes('threatened')) {
+            bgColor = 'bg-yellow-900';
+            textColor = 'text-yellow-200';
+            ringColor = 'ring-yellow-600/40';
+        }
+        
+        return {
+            bgColor,
+            textColor,
+            ringColor,
+            label: status
+        };
+    };
+
     return (
         <div className="bg-[#1e1e1e] rounded-lg shadow-lg p-4 sm:p-6 text-white">
             <div className="border-b border-[#444] mb-4">
@@ -2128,13 +2292,45 @@ function TabPanel({
                                                     <span>Identifikasi sistem berdasarkan konsensus</span>
                                                 ) : (
                                                     <>
-                                                        <span>Diidentifikasi oleh </span>
-                                                        <Link to={`/profile/${currentId.user_id}`} className="text-[#1a73e8] hover:underline">
-                                                            {currentId.identifier_name}
-                                                        </Link>
+                                                <span>Diidentifikasi oleh </span>
+                                                <Link to={`/profile/${currentId.user_id}`} className="text-[#1a73e8] hover:underline">
+                                                    {currentId.identifier_name}
+                                                </Link>
                                                     </>
                                                 )}
                                             </p>
+                                            
+                                            {/* Tampilkan grade observasi */}
+                                            <div className="mt-2 flex items-center">
+                                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                                    checklist?.grade === 'research grade' 
+                                                        ? 'bg-blue-900/30 text-blue-300 border border-blue-500/30' 
+                                                        : checklist?.grade === 'needs ID'
+                                                            ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-500/30'
+                                                            : checklist?.grade === 'confirmed ID'
+                                                                ? 'bg-green-900/30 text-green-300 border border-green-500/30'
+                                                                : checklist?.grade === 'low quality ID'
+                                                                    ? 'bg-red-900/30 text-red-300 border border-red-500/30'
+                                                                    : 'bg-gray-900/30 text-gray-300 border border-gray-500/30'
+                                                }`}>
+                                                    {checklist?.grade === 'research grade' 
+                                                        ? 'ID Lengkap' 
+                                                        : checklist?.grade === 'confirmed ID'
+                                                        ? 'ID Terkonfirmasi'
+                                                        : checklist?.grade === 'needs ID'
+                                                        ? 'Bantu Ident'
+                                                        : checklist?.grade === 'low quality ID'
+                                                        ? 'ID Kurang'
+                                                        : ''}
+                                                </span>
+                                                
+                                                {/* {checklist?.grade !== 'research grade' && (
+                                                    <span className="ml-2 text-xs text-gray-400">
+                                                        <FontAwesomeIcon icon={faInfoCircle} className="mr-1" />
+                                                        Status IUCN hanya tersedia untuk ID Lengkap
+                                                    </span>
+                                                )} */}
+                                            </div>
                                         </div>
                                         
                                         {!currentId.isSystemIdentification && user && 
@@ -2214,7 +2410,7 @@ function TabPanel({
                                         )}
                                     </div>
 
-                                    {checklist?.iucn_status && (
+                                    {/* {checklist?.iucn_status && (
                                         <div className="mt-3 flex items-center gap-2">
                                             <span className="text-xs sm:text-sm font-medium text-white">Status IUCN: </span>
                                             <span className={`px-2 py-1 rounded text-xs ${
@@ -2224,6 +2420,51 @@ function TabPanel({
                                             }`}>
                                                 {checklist.iucn_status}
                                             </span>
+                                        </div>
+                                    )} */}
+
+                                    {/* IUCN Status - Tampilkan dari state atau dari checklist */}
+                                    {(iucnStatus || checklist?.iucn_status) && checklist?.grade === 'research grade' && (
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <span className="text-xs sm:text-sm font-medium text-white">Status IUCN: </span>
+                                            {loadingIucn ? (
+                                                <span className="flex items-center text-gray-400 text-xs">
+                                                    <FontAwesomeIcon icon={faSpinner} spin className="mr-1" />
+                                                    Memuat...
+                                                </span>
+                                            ) : (
+                                                (() => {
+                                                    const status = getIUCNStatusDisplay(iucnStatus || checklist?.iucn_status);
+                                                    return (
+                                                        <span className={`px-2 py-1 rounded text-xs ${status.bgColor} ${status.textColor} ring-1 ${status.ringColor}`}>
+                                                            {status.label}
+                                                        </span>
+                                                    );
+                                                })()
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Tambahkan tombol untuk refresh status IUCN hanya untuk research grade */}
+                                    {!iucnStatus && !checklist?.iucn_status && currentId.scientific_name && checklist?.grade === 'research grade' && (
+                                        <div className="mt-3">
+                                            <button 
+                                                onClick={() => fetchIUCNStatus(currentId.scientific_name)}
+                                                disabled={loadingIucn}
+                                                className="text-xs bg-[#1a73e8]/10 text-[#1a73e8] px-2 py-1 rounded-full border border-[#1a73e8]/30 hover:bg-[#1a73e8]/20 transition-colors flex items-center"
+                                            >
+                                                {loadingIucn ? (
+                                                    <>
+                                                        <FontAwesomeIcon icon={faSpinner} spin className="mr-1" />
+                                                        Memuat status IUCN...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FontAwesomeIcon icon={faInfoCircle} className="mr-1" />
+                                                        Cek Status IUCN
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     )}
                                 </div>
