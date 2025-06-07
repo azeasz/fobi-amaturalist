@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faEdit, faSpinner, faMapMarkerAlt, faCalendar, faLayerGroup, faMicroscope, faBug, faLeaf, faPaw, faSitemap, faMosquito, faFeather } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faEdit, faSpinner, faMapMarkerAlt, faCalendar, faLayerGroup, faMicroscope, faBug, faLeaf, faPaw, faSitemap, faMosquito, faFeather, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 import defaultPlaceholder from '../../assets/icon/FOBI.png';
 import defaultPlaceholderKupunesia from '../../assets/icon/kupnes.png';
@@ -19,7 +19,12 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
   // Fungsi untuk format tanggal
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return format(new Date(dateString), 'd MMMM yyyy', { locale: id });
+    try {
+      return format(new Date(dateString), 'd MMMM yyyy', { locale: id });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '-';
+    }
   };
 
   // Fungsi untuk mendapatkan nama lokasi dari koordinat
@@ -107,7 +112,7 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
         const formattedData = {
           ...data,
           location_name: locationName,
-          formatted_date: formatDate(data.date || data.observation_date)
+          formatted_date: formatDate(data.observation_date || data.date || data.created_at)
         };
         setDetails(formattedData);
       } else {
@@ -331,17 +336,37 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 mb-4">
                         {details.source && (
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full text-white ${getSourceInfo(details.source).color}`}>
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full text-white whitespace-nowrap ${getSourceInfo(details.source).color}`}>
                             <FontAwesomeIcon icon={getSourceInfo(details.source).icon} className="mr-1" />
                             {getSourceInfo(details.source).label}
                           </span>
                         )}
+                        
+                        {/* Tambahkan tampilan grade */}
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full text-white whitespace-nowrap ${
+                          details.quality_assessment?.grade?.toLowerCase() === 'research grade' ? 'bg-blue-700/70' :
+                          details.quality_assessment?.grade?.toLowerCase() === 'confirmed id' ? 'bg-green-700/70' :
+                          details.quality_assessment?.grade?.toLowerCase() === 'needs id' ? 'bg-yellow-700/70' :
+                          details.quality_assessment?.grade?.toLowerCase() === 'low quality id' ? 'bg-orange-700/70' :
+                          'bg-gray-700/70'
+                        }`}>
+                          {details.quality_assessment?.grade 
+                            ? (details.quality_assessment.grade.toLowerCase() === 'research grade' ? 'ID Lengkap' :
+                               details.quality_assessment.grade.toLowerCase() === 'confirmed id' ? 'ID Terkonfirmasi' :
+                               details.quality_assessment.grade.toLowerCase() === 'needs id' ? 'Bantu Iden' :
+                               details.quality_assessment.grade.toLowerCase() === 'low quality id' ? 'ID Kurang' :
+                               'Checklist FOBI')
+                            : (details.source === 'burungnesia' ? 'Checklist' :
+                               details.source === 'kupunesia' ? 'Checklist' :
+                               'Checklist FOBI')
+                          }
+                        </span>
                       </div>
                       <div>
                         <h4 className="text-[#aaa] text-xs uppercase font-semibold mb-1">Nama Latin</h4>
                         <p className="text-[#e0e0e0] italic">{details.scientific_name}</p>
                         {(details.genus && details.species) && (
-                          <p className="text-[#aaa] italic">{details.genus} {details.species}</p>
+                          <p className="text-[#aaa] italic">{details.family}</p>
                         )}
                       </div>
                       
@@ -359,8 +384,8 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
                       <div className="flex items-start gap-2">
                         <FontAwesomeIcon icon={faCalendar} className="text-[#1a73e8] mt-1" />
                         <div>
-                          <h5 className="font-medium">Tanggal Observasi</h5>
-                          <p className="text-[#aaa]">{details.formatted_date}</p>
+                          <h5 className="font-medium">Tanggal Pengamatan</h5>
+                          <p className="text-[#aaa]">{details.observation_date ? formatDate(details.observation_date) : (details.date ? formatDate(details.date) : formatDate(details.created_at))}</p>
                         </div>
                       </div>
                       
@@ -507,13 +532,24 @@ const ObservationDetailsModal = ({ show, onClose, observation, onEdit }) => {
         
         {/* Footer */}
         <div className="border-t border-[#333] px-6 py-3 flex justify-end">
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] text-white rounded hover:bg-[#1565c0] transition-colors"
-          >
-            <FontAwesomeIcon icon={faEdit} />
-            <span>Edit Observasi</span>
-          </button>
+          {details && (details.source === 'burungnesia' || details.source === 'kupunesia') ? (
+            <div className="flex items-center">
+              <span className="text-yellow-500 mr-2">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+              </span>
+              <span className="text-gray-400 text-sm">
+                Fitur edit untuk observasi {details.source === 'burungnesia' ? 'Burungnesia' : 'Kupunesia'} sedang dinonaktifkan sementara
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] text-white rounded hover:bg-[#1565c0] transition-colors"
+            >
+              <FontAwesomeIcon icon={faEdit} />
+              <span>Edit Observasi</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

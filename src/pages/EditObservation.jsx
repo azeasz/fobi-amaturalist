@@ -85,6 +85,30 @@ const EditObservation = () => {
   const timeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
 
+  // Tambahkan pengecekan sumber observasi berdasarkan ID
+  useEffect(() => {
+    // Cek apakah ID dimulai dengan BN atau KN (Burungnesia atau Kupunesia)
+    if (id && (id.startsWith('BN') || id.startsWith('KN'))) {
+      const source = id.startsWith('BN') ? 'Burungnesia' : 'Kupunesia';
+      
+      // Tampilkan pesan error
+      toast.error(
+        `Fitur edit untuk observasi ${source} sedang dinonaktifkan sementara karena adanya perubahan besar pada struktur database. Saat ini, fitur edit hanya tersedia untuk observasi FOBI.`,
+        {
+          duration: 5000,
+          style: {
+            background: '#2c2c2c',
+            color: '#e0e0e0',
+            border: '1px solid #444',
+          },
+        }
+      );
+      
+      // Navigasi kembali ke halaman daftar observasi
+      navigate('/my-observations');
+    }
+  }, [id, navigate]);
+
   // Get user data
   useEffect(() => {
     const user = {
@@ -566,9 +590,112 @@ const EditObservation = () => {
     }
   };
 
+  // Tambahkan fungsi untuk menangani operasi media saja
+  const handleMediaOperationOnly = async (type) => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const token = localStorage.getItem('jwt_token');
+      let formData;
+      let response;
+      
+      if (type === 'add' && newMedias.length > 0) {
+        // Hanya menambahkan media baru
+        formData = new FormData();
+        
+        // Tambahkan file media baru
+        newMedias.forEach((file, index) => {
+          formData.append(`new_media[${index}]`, file);
+        });
+        
+        // Kirim request ke endpoint add media
+        response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/user-observations/${id}/media`,
+          formData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+      } else if (type === 'delete' && mediaToDelete.length > 0) {
+        // Hanya menghapus media
+        formData = new FormData();
+        
+        // Tambahkan ID media yang akan dihapus
+        mediaToDelete.forEach((mediaId, index) => {
+          formData.append(`media_to_delete[${index}]`, mediaId);
+        });
+        
+        // Kirim request ke endpoint delete media
+        response = await axios.delete(
+          `${import.meta.env.VITE_API_URL}/user-observations/${id}/media`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            data: {
+              media_to_delete: mediaToDelete
+            }
+          }
+        );
+      } else {
+        setSaving(false);
+        return; // Tidak ada operasi yang perlu dilakukan
+      }
+      
+      if (response.data.success) {
+        toast.success(type === 'add' ? 'Media berhasil ditambahkan' : 'Media berhasil dihapus');
+        
+        // Perbarui state
+        if (type === 'add') {
+          setNewMedias([]);
+          setPreviewUrls([]);
+        } else {
+          setMediaToDelete([]);
+        }
+        
+        // Perbarui data observasi
+        if (response.data.data) {
+          setMedias(response.data.data.medias || []);
+        }
+        
+        // Reload halaman untuk menampilkan perubahan
+        window.location.reload();
+      } else {
+        setError(response.data.message || `Gagal ${type === 'add' ? 'menambahkan' : 'menghapus'} media`);
+      }
+    } catch (err) {
+      console.error(`Error ${type === 'add' ? 'adding' : 'deleting'} media:`, err);
+      
+      if (err.response) {
+        setError(`Error: ${err.response.data.message || 'Terjadi kesalahan pada server'}`);
+      } else if (err.request) {
+        setError('Tidak ada respons dari server. Periksa koneksi internet Anda.');
+      } else {
+        setError(`Terjadi kesalahan: ${err.message}`);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Improve handleSubmit to correctly send taxonomy data
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Jika hanya operasi media, gunakan fungsi khusus
+    if (newMedias.length > 0 && mediaToDelete.length === 0 && !formData.scientific_name) {
+      return handleMediaOperationOnly('add');
+    } else if (mediaToDelete.length > 0 && newMedias.length === 0 && !formData.scientific_name) {
+      return handleMediaOperationOnly('delete');
+    }
+    
     try {
       setSaving(true);
       setError(null);
@@ -577,12 +704,35 @@ const EditObservation = () => {
       console.log('Form data sebelum validasi:', formData);
       console.log('taxon_id type:', typeof formData.taxon_id, 'value:', formData.taxon_id);
 
-      // Validasi data wajib
-      if (!formData.scientific_name || formData.latitude === undefined || formData.longitude === undefined) {
-        setError('Nama ilmiah dan lokasi (latitude/longitude) harus diisi');
+      // Validasi data wajib dengan lebih ketat
+      if (!formData.scientific_name || formData.scientific_name.trim() === '') {
+        setError('Nama ilmiah harus diisi');
         setSaving(false);
         return;
       }
+
+      // Pastikan latitude dan longitude adalah angka yang valid
+      const lat = parseFloat(String(formData.latitude));
+      const lng = parseFloat(String(formData.longitude));
+      
+      if (isNaN(lat) || isNaN(lng)) {
+        console.error('Latitude atau longitude tidak valid:', {
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          parsedLatitude: lat,
+          parsedLongitude: lng
+        });
+        setError('Latitude atau longitude tidak valid. Pastikan nilai koordinat berupa angka.');
+        setSaving(false);
+        return;
+      }
+
+      // Debug nilai field wajib
+      console.log('Field wajib sebelum dikirim:', {
+        scientific_name: formData.scientific_name,
+        latitude: lat,
+        longitude: lng
+      });
 
       // Jika ada file media baru atau media yang akan dihapus, gunakan FormData
       if (newMedias.length > 0 || mediaToDelete.length > 0) {
@@ -590,24 +740,10 @@ const EditObservation = () => {
         const submitData = new FormData();
         
         // Pastikan field wajib selalu ada dan dalam format yang benar
-        submitData.append('scientific_name', String(formData.scientific_name).trim());
+        const scientificName = String(formData.scientific_name).trim();
+        submitData.append('scientific_name', scientificName);
         
         // Pastikan latitude dan longitude adalah string dari angka yang valid
-        const lat = parseFloat(String(formData.latitude));
-        const lng = parseFloat(String(formData.longitude));
-        
-        if (isNaN(lat) || isNaN(lng)) {
-          console.error('Latitude atau longitude tidak valid:', {
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            parsedLatitude: lat,
-            parsedLongitude: lng
-          });
-          setError('Latitude atau longitude tidak valid. Pastikan nilai koordinat berupa angka.');
-          setSaving(false);
-          return;
-        }
-        
         submitData.append('latitude', String(lat));
         submitData.append('longitude', String(lng));
         
@@ -647,6 +783,18 @@ const EditObservation = () => {
           console.log(pair[0] + ': ' + pair[1]);
         }
 
+        // Periksa sekali lagi apakah field wajib sudah ada
+        if (!submitData.get('scientific_name') || !submitData.get('latitude') || !submitData.get('longitude')) {
+          console.error('Field wajib hilang dari FormData:', {
+            scientific_name: submitData.get('scientific_name'),
+            latitude: submitData.get('latitude'),
+            longitude: submitData.get('longitude')
+          });
+          setError('Field wajib hilang saat memproses data. Silakan coba lagi.');
+          setSaving(false);
+          return;
+        }
+
         // Send to API
         const token = localStorage.getItem('jwt_token');
         const response = await axios.put(
@@ -672,8 +820,8 @@ const EditObservation = () => {
         // Jika tidak ada file, gunakan JSON biasa
         const jsonData = {
           scientific_name: String(formData.scientific_name).trim(),
-          latitude: parseFloat(String(formData.latitude)),
-          longitude: parseFloat(String(formData.longitude)),
+          latitude: lat,
+          longitude: lng,
           // Selalu kirim semua field taksonomi, bahkan jika kosong
           taxon_id: String(formData.taxon_id || ''),
           kingdom: String(formData.kingdom || ''),
@@ -685,19 +833,6 @@ const EditObservation = () => {
           species: String(formData.species || '')
         };
         
-        // Pastikan nilai latitude dan longitude adalah angka yang valid
-        if (isNaN(jsonData.latitude) || isNaN(jsonData.longitude)) {
-          console.error('Latitude atau longitude tidak valid:', {
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            parsedLatitude: jsonData.latitude,
-            parsedLongitude: jsonData.longitude
-          });
-          setError('Latitude atau longitude tidak valid. Pastikan nilai koordinat berupa angka.');
-          setSaving(false);
-          return;
-        }
-        
         if (formData.observation_date) jsonData.observation_date = formData.observation_date;
         
         // Observation details
@@ -706,6 +841,18 @@ const EditObservation = () => {
         }
         
         console.log('JSON data yang akan dikirim:', jsonData);
+        
+        // Periksa sekali lagi apakah field wajib sudah ada
+        if (!jsonData.scientific_name || jsonData.latitude === undefined || jsonData.longitude === undefined) {
+          console.error('Field wajib hilang dari JSON data:', {
+            scientific_name: jsonData.scientific_name,
+            latitude: jsonData.latitude,
+            longitude: jsonData.longitude
+          });
+          setError('Field wajib hilang saat memproses data. Silakan coba lagi.');
+          setSaving(false);
+          return;
+        }
         
         // Send to API
         const token = localStorage.getItem('jwt_token');
@@ -741,8 +888,18 @@ const EditObservation = () => {
         // Handle validation errors
         if (err.response.status === 422 && err.response.data.errors) {
           console.error('Validation errors:', err.response.data.errors);
-          const errorMessages = Object.values(err.response.data.errors).flat().join('\n');
-          setError(`Validasi gagal:\n${errorMessages}`);
+          
+          // Format error messages untuk ditampilkan ke pengguna
+          const errorMessages = [];
+          for (const field in err.response.data.errors) {
+            const fieldErrors = err.response.data.errors[field];
+            errorMessages.push(`${field}: ${fieldErrors.join(', ')}`);
+          }
+          
+          setError(`Validasi gagal:\n${errorMessages.join('\n')}`);
+          
+          // Tampilkan toast error untuk notifikasi cepat
+          toast.error('Gagal menyimpan: Ada kesalahan validasi');
         } 
         // Handle SQL errors related to unknown columns
         else if (err.response.data.message && err.response.data.message.includes('Unknown column')) {
@@ -768,10 +925,24 @@ const EditObservation = () => {
           
           return; // Exit early to avoid setting generic error message
         } else {
-          setError(err.response.data.message || 'Gagal menyimpan perubahan');
+          // Handle other API errors
+          const errorMessage = err.response.data.message || 'Gagal menyimpan perubahan';
+          setError(`Error: ${errorMessage}`);
+          toast.error('Gagal menyimpan observasi');
+          
+          // Log additional details for debugging
+          console.error('Full error response:', err.response);
         }
+      } else if (err.request) {
+        // Request was made but no response received
+        setError('Tidak ada respons dari server. Periksa koneksi internet Anda.');
+        toast.error('Gagal terhubung ke server');
+        console.error('No response received:', err.request);
       } else {
-        setError('Gagal terhubung ke server');
+        // Error in setting up the request
+        setError(`Terjadi kesalahan: ${err.message}`);
+        toast.error('Terjadi kesalahan saat menyimpan');
+        console.error('Error message:', err.message);
       }
     } finally {
       setSaving(false);
@@ -1011,85 +1182,132 @@ const EditObservation = () => {
                             mediaToDelete.includes(media.id)
                               ? 'bg-red-500 text-white'
                               : 'bg-[#2c2c2c] text-[#e0e0e0] opacity-0 group-hover:opacity-100'
-                          } transition-opacity`}
-                        >
-                          <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                        </button>
+                          } transition-opacity`
+                        }
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
                       </div>
                     ))}
                   </div>
                 )}
-                
-                {/* New Media Previews */}
-                {previewUrls.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
-                    {previewUrls.map((url, index) => (
-                      <div key={`new-media-${index}`} className="relative group rounded-lg overflow-hidden border-2 border-[#1a73e8]">
-                        <div className="aspect-w-1 aspect-h-1">
-                          <img
-                            src={url}
-                            alt={`New media ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewMedia(index)}
-                          className="absolute top-2 right-2 p-2 rounded-full bg-[#2c2c2c] text-[#e0e0e0] opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <FontAwesomeIcon icon={faTimes} className="w-4 h-4" />
-                        </button>
+
+                {/* New Media */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {newMedias.map((file, index) => (
+                    <div key={index} className="relative group rounded-lg overflow-hidden border-2 border-[#444]">
+                      <div className="aspect-w-1 aspect-h-1">
+                        <img
+                          src={previewUrls[index]}
+                          alt={`Preview ${index}`}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Upload Button */}
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] text-white rounded cursor-pointer hover:bg-[#1565c0] transition-colors">
-                    <FontAwesomeIcon icon={faImage} />
-                    <span>Tambah Media</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveNewMedia(index)}
+                        className="absolute top-2 right-2 p-2 rounded-full bg-[#2c2c2c] text-[#e0e0e0] opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Media Button */}
+                <div className="mt-4">
+                  <label htmlFor="new_media" className="cursor-pointer">
+                    <div className="flex items-center justify-center w-full p-4 border-2 border-dashed border-[#444] rounded-lg text-[#aaa] hover:bg-[#2c2c2c] transition-colors">
+                      <FontAwesomeIcon icon={faImage} className="mr-2" />
+                      <span>Tambah Media</span>
+                    </div>
                     <input
                       type="file"
+                      id="new_media"
+                      name="new_media"
                       multiple
-                      accept="image/*,video/*,audio/*"
                       onChange={handleFileChange}
                       className="hidden"
                     />
                   </label>
+                </div>
+                
+                {/* Media Operation Buttons */}
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                  {newMedias.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleMediaOperationOnly('add')}
+                      disabled={saving}
+                      className="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+                    >
+                      {saving ? (
+                        <>
+                          <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                          Mengunggah Media...
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faImage} className="mr-2" />
+                          Unggah Media Saja
+                        </>
+                      )}
+                    </button>
+                  )}
+                  
                   {mediaToDelete.length > 0 && (
-                    <p className="text-red-400">
-                      {mediaToDelete.length} media akan dihapus
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleMediaOperationOnly('delete')}
+                      disabled={saving}
+                      className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+                    >
+                      {saving ? (
+                        <>
+                          <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                          Menghapus Media...
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                          Hapus Media Terpilih
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
+                
+                {/* Media Operation Helper Text */}
+                {(newMedias.length > 0 || mediaToDelete.length > 0) && (
+                  <div className="mt-2 text-sm text-gray-400">
+                    <p>Klik tombol di atas untuk melakukan operasi media tanpa perlu mengisi field wajib lainnya.</p>
+                  </div>
+                )}
               </div>
 
-              {/* Form Buttons */}
-              <div className="flex justify-end gap-4">
+              {/* Save and Cancel Buttons */}
+              <div className="flex justify-end space-x-4">
                 <button
                   type="button"
                   onClick={handleCancel}
-                  disabled={saving}
-                  className="px-6 py-2 bg-[#3c3c3c] text-[#e0e0e0] rounded-lg hover:bg-[#4c4c4c] transition-colors disabled:opacity-50"
+                  className="px-6 py-3 bg-[#323232] text-[#e0e0e0] rounded hover:bg-[#3c3c3c]"
                 >
-                  <FontAwesomeIcon icon={faTimes} className="mr-2" />
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] transition-colors disabled:opacity-50 flex items-center"
+                  className="px-6 py-3 bg-[#1a73e8] text-[#e0e0e0] rounded hover:bg-[#1662c4] disabled:bg-[#1662c4] disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>
                       <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
-                      <span>Menyimpan...</span>
+                      Menyimpan...
                     </>
                   ) : (
                     <>
                       <FontAwesomeIcon icon={faSave} className="mr-2" />
-                      <span>Simpan Perubahan</span>
+                      Simpan Perubahan
                     </>
                   )}
                 </button>
@@ -1102,4 +1320,4 @@ const EditObservation = () => {
   );
 };
 
-export default EditObservation; 
+export default EditObservation;

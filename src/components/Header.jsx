@@ -1136,7 +1136,7 @@ const Header = ({ onSearch, setStats, onMapReset, onFilterChange }) => {
                                     {/* Messages */}
                                     <Link
                                         to="/messages"
-                                        className="relative group"
+                                        className="relative group hidden"
                                     >
                                         <FontAwesomeIcon
                                             icon={faEnvelope}
@@ -1565,7 +1565,7 @@ const Header = ({ onSearch, setStats, onMapReset, onFilterChange }) => {
                                             {renderMobileNotifications()}
                                             <Link
                                                 to="/messages"
-                                                className="flex items-center space-x-3 py-2 text-gray-300 hover:text-[#1a73e8] transition-colors"
+                                                className="flex items-center space-x-3 py-2 text-gray-300 hover:text-[#1a73e8] transition-colors hidden"
                                                 onClick={toggleSidebar}
                                             >
                                                 <FontAwesomeIcon icon={faEnvelope} />

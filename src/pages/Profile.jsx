@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faBars, faTimes, faCalendarDay, faCalendarWeek, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 import Sidebar from '../components/Sidebar';
 import EditProfileModal from '../components/EditProfileModal';
 import ActivityChart from '../components/ActivityChart';
@@ -21,7 +21,7 @@ function Profile() {
         observations: [],
         identifications: []
     });
-    const [showSidebar, setShowSidebar] = useState(true);
+    const [showSidebar, setShowSidebar] = useState(false);
     
     const currentUserId = localStorage.getItem('user_id');
     const isOwnProfile = currentUserId === id;
@@ -52,7 +52,7 @@ function Profile() {
             
             Promise.all([
                 fetchProfileData(),
-                fetchActivityData(),
+                fetchActivityData(activityPeriod),
                 fetchTopTaxa()
             ]).then(() => {
                 console.log('All profile data fetched');
@@ -61,6 +61,14 @@ function Profile() {
             });
         }
     }, [id]);
+
+    // Tambahkan useEffect baru untuk memantau perubahan periode aktivitas
+    useEffect(() => {
+        if (id) {
+            console.log('Fetching activity data for period:', activityPeriod);
+            fetchActivityData(activityPeriod);
+        }
+    }, [activityPeriod, id]);
 
     const fetchProfileData = async () => {
         try {
@@ -156,20 +164,20 @@ const getUserData = () => {
                     {/* Toggle Sidebar Button - Visible on mobile */}
                     <button 
                         onClick={() => setShowSidebar(!showSidebar)}
-                        className="lg:hidden mb-4 p-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] w-full"
+                        className="lg:hidden mb-4 p-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] flex items-center justify-center gap-2"
                     >
-                        {showSidebar ? <FontAwesomeIcon icon={faTimes} /> : <FontAwesomeIcon icon={faBars} />}
+                        <FontAwesomeIcon icon={showSidebar ? faTimes : faBars} />
+                        <span>Menu</span>
                     </button>
 
                     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-                        {/* Sidebar dengan kondisi responsive */}
-                        <div className={`
-                            ${showSidebar ? 'block' : 'hidden'}
-                            lg:block
-                            w-full lg:w-64
-                            transition-all duration-300
-                        `}>
-                            <Sidebar userId={id} />
+                        {/* Sidebar dengan properti baru */}
+                        <div className="lg:block lg:w-1/5 xl:w-1/6">
+                            <Sidebar 
+                                userId={id} 
+                                isMobileOpen={showSidebar}
+                                onMobileClose={() => setShowSidebar(false)}
+                            />
                         </div>
 
                         {/* Main Content */}
@@ -211,30 +219,33 @@ const getUserData = () => {
                                             <button 
                                                 className={`px-3 sm:px-4 py-2 rounded text-sm ${
                                                     activityPeriod === 'year' ? 'bg-[#1a73e8] text-white' : 'bg-[#2c2c2c] text-[#e0e0e0]'
-                                                }`}
+                                                } flex items-center gap-2 transition-all hover:bg-[#3c3c3c]`}
                                                 onClick={() => setActivityPeriod('year')}
                                             >
-                                                1 tahun
+                                                <FontAwesomeIcon icon={faCalendarAlt} />
+                                                <span>1 tahun</span>
                                             </button>
                                             <button 
                                                 className={`px-3 sm:px-4 py-2 rounded text-sm ${
                                                     activityPeriod === 'month' ? 'bg-[#1a73e8] text-white' : 'bg-[#2c2c2c] text-[#e0e0e0]'
-                                                }`}
+                                                } flex items-center gap-2 transition-all hover:bg-[#3c3c3c]`}
                                                 onClick={() => setActivityPeriod('month')}
                                             >
-                                                1 bulan
+                                                <FontAwesomeIcon icon={faCalendarDay} />
+                                                <span>1 bulan</span>
                                             </button>
                                             <button 
                                                 className={`px-3 sm:px-4 py-2 rounded text-sm ${
                                                     activityPeriod === 'week' ? 'bg-[#1a73e8] text-white' : 'bg-[#2c2c2c] text-[#e0e0e0]'
-                                                }`}
+                                                } flex items-center gap-2 transition-all hover:bg-[#3c3c3c]`}
                                                 onClick={() => setActivityPeriod('week')}
                                             >
-                                                1 minggu
+                                                <FontAwesomeIcon icon={faCalendarWeek} />
+                                                <span>1 minggu</span>
                                             </button>
                                         </div>
                                         <div className="overflow-x-auto">
-                                            <ActivityChart data={activityData} />
+                                            <ActivityChart data={activityData} period={activityPeriod} />
                                         </div>
                                     </div>
 
@@ -247,7 +258,7 @@ const getUserData = () => {
                             )}
 
                             {/* Followers & Following Section */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-8">
                                 {/* Mengikuti */}
                                 <div className="bg-[#1e1e1e] rounded shadow-sm p-4 sm:p-6 border border-[#444]">
                                     <h2 className="text-xl font-semibold mb-4 text-[#e0e0e0]">

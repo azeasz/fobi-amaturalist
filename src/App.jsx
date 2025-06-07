@@ -29,9 +29,11 @@ import AdminHistoryPage from './components/DetailObservations/AdminHistoryPage';
 import BantuIdent from './components/BantuIdent/BantuIdent';
 import Profile from './pages/Profile';
 import ProfileObservations from './pages/ProfileObservations';
+import ProfileTaxaFavorites from './pages/ProfileTaxaFavorites';
+import ProfileSpecies from './pages/ProfileSpecies';
+import ProfileIdentifications from './pages/ProfileIdentifications';
 import UserObservations from './pages/UserObservations';
 import EditObservation from './pages/EditObservation';
-import RateLimitingTester from './components/RateLimitingTester';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { calculateCenterPoint } from './utils/geoHelpers';
 import DetailChecklistBurkup from './components/DetailChecklistBurkup';
@@ -305,50 +307,58 @@ const App = () => {
 
               <Route path="/bantu-ident" element={
                 <ProtectedRoute>
-                  <BantuIdent />
+                    <BantuIdent />
                 </ProtectedRoute>
-              } />
+            } />
+            <Route path="/profile/:id" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/:id/observasi" element={
+              <ProtectedRoute>
+                <ProfileObservations />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/:id/taksa" element={
+              <ProtectedRoute>
+                <ProfileTaxaFavorites />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/:id/spesies" element={
+              <ProtectedRoute>
+                <ProfileSpecies />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/:id/identifikasi" element={
+              <ProtectedRoute>
+                <ProfileIdentifications />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={<NotificationPage />} />
+            <Route path="/admin-history/:id" element={
+              <ProtectedRoute>
+                <AdminHistoryPage />
+              </ProtectedRoute>
+            } />
 
-              <Route path="/profile/:id" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } />
+            <Route path="/my-observations" element={
+              <ProtectedRoute>
+                <UserObservations />
+              </ProtectedRoute>
+            } />
 
-              <Route path="/profile/:id/observasi" element={
-                <ProtectedRoute>
-                  <ProfileObservations />
-                </ProtectedRoute>
-              } />
+            <Route path="/edit-observation/:id" element={
+              <ProtectedRoute>
+                <EditObservation />
+              </ProtectedRoute>
+            } />
 
-              <Route path="/notifications" element={<NotificationPage />} />
-
-              <Route path="/admin-history/:id" element={
-                <ProtectedRoute>
-                  <AdminHistoryPage />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/my-observations" element={
-                <ProtectedRoute>
-                  <UserObservations />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/edit-observation/:id" element={
-                <ProtectedRoute>
-                  <EditObservation />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/add-observation" element={
-                <ProtectedRoute>
-                  <FobiUpload />
-                </ProtectedRoute>
-              } />
-
-              {/* Testing Route */}
-              <Route path="/test-rate-limiting" element={<RateLimitingTester />} />
+            <Route path="/add-observation" element={
+              <ProtectedRoute>
+                <FobiUpload />
+              </ProtectedRoute>
+            } />
             </Routes>
           </>
         </Router>

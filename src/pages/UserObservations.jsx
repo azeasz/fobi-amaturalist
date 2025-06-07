@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faEdit, faTrash, faPlus, faSpinner, faTimes, faMapMarkerAlt, faCalendar, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faEdit, faTrash, faPlus, faSpinner, faTimes, faMapMarkerAlt, faCalendar, faExclamationTriangle, faBars } from '@fortawesome/free-solid-svg-icons';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, Rectangle, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -9,6 +9,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import DeleteObservationModal from '../components/UserObservations/DeleteObservationModal';
 import ObservationDetailsModal from '../components/UserObservations/ObservationDetailsModal';
+import MultiSpeciesModal from '../components/UserObservations/MultiSpeciesModal';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -39,6 +40,7 @@ const UserObservations = () => {
   const [selectedObservation, setSelectedObservation] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showMultiSpeciesModal, setShowMultiSpeciesModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userData, setUserData] = useState(null);
   const [mapCenter, setMapCenter] = useState([-2.5489, 118.0149]);
@@ -53,6 +55,7 @@ const UserObservations = () => {
   const [showMarkers, setShowMarkers] = useState(false);
   const [selectedGrid, setSelectedGrid] = useState(null);
   const [locationCache, setLocationCache] = useState({});
+  const [showSidebar, setShowSidebar] = useState(false);
   
   // Get user data from local storage
   useEffect(() => {
@@ -117,7 +120,23 @@ const UserObservations = () => {
   // Tambahkan fungsi format tanggal
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return format(new Date(dateString), 'd MMMM yyyy', { locale: id });
+    try {
+      return format(new Date(dateString), 'd MMMM yyyy', { locale: id });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '-';
+    }
+  };
+
+  // Tambahkan fungsi untuk format tanggal input (YYYY-MM-DD)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'yyyy-MM-dd');
+    } catch (error) {
+      console.error('Error formatting date for input:', error);
+      return '';
+    }
   };
 
   // Fetch observations
@@ -131,7 +150,7 @@ const UserObservations = () => {
         page: currentPage,
         search: searchQuery,
         search_type: searchType,
-        date: dateFilter,
+        date: dateFilter, // Format tanggal sudah YYYY-MM-DD dari input
       };
       
       const token = localStorage.getItem('jwt_token');
@@ -156,7 +175,7 @@ const UserObservations = () => {
             return {
               ...obs,
               location_name: locationName,
-              formatted_date: formatDate(obs.date || obs.observation_date) // Gunakan date atau observation_date
+              formatted_date: formatDate(obs.observation_date || obs.date || obs.created_at) // Prioritaskan observation_date
             };
           })
         );
@@ -211,7 +230,24 @@ const UserObservations = () => {
   
   // Edit observation
   const handleEdit = (observation) => {
-    // Tambahkan prefix untuk ID berdasarkan sumber data
+    // Cek sumber observasi
+    if (observation.source === 'burungnesia' || observation.source === 'kupunesia') {
+      // Tampilkan pesan error jika sumber adalah burungnesia atau kupunesia
+      toast.error(
+        'Fitur edit untuk observasi Burungnesia dan Kupunesia sedang dinonaktifkan sementara karena adanya perubahan besar pada struktur database. Saat ini, fitur edit hanya tersedia untuk observasi Amaturalist.',
+        {
+          duration: 5000, // Tampilkan pesan lebih lama (5 detik)
+          style: {
+            background: '#2c2c2c',
+            color: '#e0e0e0',
+            border: '1px solid #444',
+          },
+        }
+      );
+      return; // Berhenti dan jangan navigasi ke halaman edit
+    }
+    
+    // Jika sumber adalah taxa atau lainnya, lanjutkan seperti biasa
     let editId = observation.id;
     if (observation.source === 'burungnesia') {
       editId = `BN${observation.id}`;
@@ -315,7 +351,13 @@ const UserObservations = () => {
   // View details
   const handleViewDetails = (observation) => {
     setSelectedObservation(observation);
-    setShowDetailsModal(true);
+    
+    // Cek sumber data untuk menentukan modal yang akan ditampilkan
+    if (observation.source === 'burungnesia' || observation.source === 'kupunesia') {
+      setShowMultiSpeciesModal(true);
+    } else {
+      setShowDetailsModal(true);
+    }
   };
 
   // Fungsi untuk generate grid
@@ -438,14 +480,53 @@ const UserObservations = () => {
     }
   };
 
+  // Fungsi untuk mendapatkan ringkasan spesies untuk observasi burungnesia/kupunesia
+  const getSpeciesSummary = (observation) => {
+    if (observation.source !== 'burungnesia' && observation.source !== 'kupunesia') {
+      return observation.scientific_name;
+    }
+    
+    // Jika faunas tersedia dan memiliki data
+    if (observation.faunas && observation.faunas.length > 0) {
+      const count = observation.faunas.length;
+      
+      // Jika hanya ada 1 spesies, tampilkan nama spesies tersebut
+      if (count === 1 && observation.faunas[0].fauna) {
+        return observation.faunas[0].fauna.nameLat;
+      }
+      
+      // Jika ada lebih dari 1 spesies, tampilkan ringkasan
+      const firstSpecies = observation.faunas[0]?.fauna?.nameLat || 'Unknown Species';
+      return `${count} spesies (${firstSpecies}, dsb.)`;
+    }
+    
+    // Fallback jika tidak ada data fauna
+    return observation.scientific_name || 'Belum ada spesies terdaftar';
+  };
+
   return (
     <div className="min-h-screen bg-[#121212] text-[#e0e0e0]">
       <Header userData={userData} />
       
       <div className="container mx-auto px-4 py-8 mt-16">
+        {/* Toggle Sidebar Button - Visible on mobile */}
+        <button 
+          onClick={() => setShowSidebar(!showSidebar)}
+          className="lg:hidden mb-4 p-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1565c0] flex items-center justify-center gap-2 w-full"
+        >
+          <FontAwesomeIcon icon={showSidebar ? faTimes : faBars} />
+          <span>Menu</span>
+        </button>
+        
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="w-full lg:w-64">
-            <Sidebar userId={userData?.id} />
+          {/* Sidebar dengan properti baru */}
+          <div className="lg:block lg:w-1/5 xl:w-1/6">
+            <Sidebar 
+              userId={userData?.id} 
+              activeItem="Kelola Observasi"
+              isMobileOpen={showSidebar}
+              onMobileClose={() => setShowSidebar(false)}
+            />
           </div>
           
           <div className="flex-1">
@@ -484,12 +565,15 @@ const UserObservations = () => {
                       <option value="location">Lokasi</option>
                       <option value="date">Tanggal</option>
                     </select>
-                    <input
-                      type="date"
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
-                      className="p-2 border border-[#444] rounded-lg focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
-                    />
+                    <div className="flex flex-col">
+                      <input
+                        id="dateFilter"
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        className="p-2 border border-[#444] rounded-lg focus:ring-2 focus:ring-[#1a73e8] bg-[#2c2c2c] text-[#e0e0e0]"
+                      />
+                    </div>
                     <div className="flex gap-2">
                       <button
                         type="submit"
@@ -648,16 +732,19 @@ const UserObservations = () => {
                           Foto
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
-                          Nama Latin
+                          Spesies / Taksa
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
                           Lokasi
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider min-w-[120px]">
                           Tanggal
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider min-w-[110px]">
                           Sumber
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider min-w-[130px]">
+                          Grade
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-[#aaa] uppercase tracking-wider">
                           Aksi
@@ -703,10 +790,12 @@ const UserObservations = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div>
-                              <p className="text-[#e0e0e0] font-medium italic">{observation.scientific_name}</p>
-                              {observation.genus && observation.species && (
+                              <p className="text-[#e0e0e0] font-medium italic">
+                                {getSpeciesSummary(observation)}
+                              </p>
+                              {observation.genus && observation.species && observation.source === 'taxa' && (
                                 <p className="text-[#aaa] text-sm">
-                                  {observation.genus} {observation.species}
+                                  {observation.family}
                                 </p>
                               )}
                             </div>
@@ -717,11 +806,31 @@ const UserObservations = () => {
                               <span className="text-[#e0e0e0]">{observation.location_name}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-[#e0e0e0]">
+                          <td className="px-6 py-4 text-[#e0e0e0] whitespace-nowrap">
                             {observation.formatted_date}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             {getSourceBadge(observation.source)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded-full text-xs text-white ${
+                              observation.quality_assessment?.grade?.toLowerCase() === 'research grade' ? 'bg-blue-700/70' :
+                              observation.quality_assessment?.grade?.toLowerCase() === 'confirmed id' ? 'bg-green-700/70' :
+                              observation.quality_assessment?.grade?.toLowerCase() === 'needs id' ? 'bg-yellow-700/70' :
+                              observation.quality_assessment?.grade?.toLowerCase() === 'low quality id' ? 'bg-orange-700/70' :
+                              'bg-gray-700/70'
+                            }`}>
+                              {observation.quality_assessment?.grade 
+                                ? (observation.quality_assessment.grade.toLowerCase() === 'research grade' ? 'ID Lengkap' :
+                                   observation.quality_assessment.grade.toLowerCase() === 'confirmed id' ? 'ID Terkonfirmasi' :
+                                   observation.quality_assessment.grade.toLowerCase() === 'needs id' ? 'Bantu Iden' :
+                                   observation.quality_assessment.grade.toLowerCase() === 'low quality id' ? 'ID Kurang' :
+                                   'casual')
+                                : (observation.source === 'burungnesia' ? 'Checklist' :
+                                   observation.source === 'kupunesia' ? 'Checklist' :
+                                   'casual')
+                              }
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
@@ -798,13 +907,26 @@ const UserObservations = () => {
         observation={selectedObservation}
       />
       
-      {/* Details Modal */}
+      {/* Details Modal for single species (FOBI-Amaturalist) */}
       <ObservationDetailsModal
         show={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         observation={selectedObservation}
         onEdit={() => {
           setShowDetailsModal(false);
+          if (selectedObservation) {
+            handleEdit(selectedObservation);
+          }
+        }}
+      />
+      
+      {/* Multi-species Modal for Burungnesia/Kupunesia */}
+      <MultiSpeciesModal
+        show={showMultiSpeciesModal}
+        onClose={() => setShowMultiSpeciesModal(false)}
+        observation={selectedObservation}
+        onEdit={() => {
+          setShowMultiSpeciesModal(false);
           if (selectedObservation) {
             handleEdit(selectedObservation);
           }
