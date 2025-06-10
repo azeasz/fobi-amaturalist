@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Auth.css';
 import { apiFetch } from '../../utils/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -22,6 +24,14 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validatePassword = (password) => {
+    if (password.length < 6) {
+      return ['Password minimal harus 6 karakter'];
+    }
+    return [];
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,6 +49,20 @@ const Register = () => {
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
+
+    // Validasi password saat pengguna mengetik
+    if (name === 'password') {
+      const passwordErrors = validatePassword(value);
+      if (passwordErrors.length > 0) {
+        setErrors(prev => ({ ...prev, password: passwordErrors }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.password;
+          return newErrors;
+        });
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -48,6 +72,13 @@ const Register = () => {
     
     // Validasi tambahan sebelum mengirim data ke server
     let validationErrors = {};
+    
+    // Validasi password
+    const passwordErrors = validatePassword(formData.password);
+    if (passwordErrors.length > 0) {
+      validationErrors.password = passwordErrors;
+      toast.error('Password minimal harus 6 karakter');
+    }
     
     // Validasi format telepon
     if (formData.phone) {
@@ -97,28 +128,36 @@ const Register = () => {
       if (!response.ok) {
         if (data.errors) {
           setErrors(data.errors);
+          // Tampilkan toast untuk setiap error
+          Object.values(data.errors).forEach(error => {
+            toast.error(error);
+          });
         } else if (data.error) {
           // Handle specific error messages
           switch (data.error) {
             case 'EMAIL_EXISTS':
               setErrors({ email: 'Email sudah terdaftar' });
+              toast.error('Email sudah terdaftar');
               break;
             case 'USERNAME_EXISTS':
               setErrors({ uname: 'Username sudah digunakan' });
+              toast.error('Username sudah digunakan');
               break;
             default:
               setErrors({ general: data.error || 'Terjadi kesalahan saat mendaftar' });
+              toast.error(data.error || 'Terjadi kesalahan saat mendaftar');
           }
         }
         return;
       }
 
       // Registrasi berhasil
-      setSuccessMessage(
-        `Pendaftaran berhasil! Silakan cek email Anda di ${formData.email} untuk verifikasi akun.
+      const successMsg = `Pendaftaran berhasil! Silakan cek email Anda di ${formData.email} untuk verifikasi akun.
          ${formData.burungnesia_email ? '\nEmail Burungnesia akan diverifikasi secara terpisah.' : ''}
-         ${formData.kupunesia_email ? '\nEmail Kupunesia akan diverifikasi secara terpisah.' : ''}`
-      );
+         ${formData.kupunesia_email ? '\nEmail Kupunesia akan diverifikasi secara terpisah.' : ''}`;
+      
+      setSuccessMessage(successMsg);
+      toast.success('Pendaftaran berhasil!');
       
       // Tunggu sebentar sebelum redirect
       setTimeout(() => {
@@ -133,9 +172,11 @@ const Register = () => {
 
     } catch (err) {
       console.error('Error during registration:', err);
+      const errorMsg = 'Terjadi kesalahan pada server. Silakan coba lagi nanti.';
       setErrors({
-        general: 'Terjadi kesalahan pada server. Silakan coba lagi nanti.'
+        general: errorMsg
       });
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -143,6 +184,7 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] mt-5 py-12 px-4 sm:px-6 lg:px-8">
+      <ToastContainer position="top-right" autoClose={5000} />
       <div className="max-w-md w-full space-y-8 bg-[#1e1e1e] p-8 rounded-lg shadow-lg border border-[#444]">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold text-white">
@@ -228,15 +270,40 @@ const Register = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                 Password <span className="text-red-500">*</span>
               </label>
-              <input
-                id="password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-[#444] rounded-md shadow-sm focus:outline-none focus:ring-[#1a73e8] focus:border-[#1a73e8] bg-[#2c2c2c] text-white"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-[#444] rounded-md shadow-sm focus:outline-none focus:ring-[#1a73e8] focus:border-[#1a73e8] bg-[#2c2c2c] text-white pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              {errors.password && Array.isArray(errors.password) && (
+                <div className="mt-1 text-sm text-amber-400">
+                  <ul className="list-disc pl-5">
+                    {errors.password.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-400">
+                • Password minimal 6 karakter
+              </p>
             </div>
 
             <div>

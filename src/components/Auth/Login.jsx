@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useUser } from '../../context/UserContext'; // Import hook useUser
-import { Eye, EyeOff, Loader2, Info, Mail, AlertTriangle, CheckCircle, Clock } from 'lucide-react'; // Import icons
+import { Eye, EyeOff, Loader2, Info, Mail, AlertTriangle, CheckCircle } from 'lucide-react'; // Import icons
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './Auth.css';
 import { apiFetch } from '../../utils/api';
-import { isInCooldown, getRemainingCooldown, setCooldown } from '../../utils/rateLimiting';
 
 // Komponen Modal untuk bantuan verifikasi
 const VerificationHelpModal = ({ isOpen, onClose, email, onResendVerification, isResending, verificationStatus, onCheckStatus, cooldownTimer }) => {
@@ -171,7 +170,6 @@ const Login = () => {
   const [showPasswordTooltip, setShowPasswordTooltip] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
-  const [loginCooldown, setLoginCooldown] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
@@ -189,37 +187,6 @@ const Login = () => {
       if (timerId) clearTimeout(timerId);
     };
   }, [cooldownTimer]);
-
-  // Effect untuk login cooldown
-  useEffect(() => {
-    // Cek apakah ada cooldown login yang sedang berjalan
-    const checkLoginCooldown = () => {
-      const remainingCooldown = getRemainingCooldown('login');
-      if (remainingCooldown > 0) {
-        setLoginCooldown(remainingCooldown);
-        
-        // Update setiap detik
-        const intervalId = setInterval(() => {
-          const remaining = getRemainingCooldown('login');
-          setLoginCooldown(remaining);
-          
-          if (remaining <= 0) {
-            clearInterval(intervalId);
-          }
-        }, 1000);
-        
-        return intervalId;
-      }
-      return null;
-    };
-    
-    const intervalId = checkLoginCooldown();
-    
-    // Cleanup interval
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
 
   // Cek apakah ada parameter verifikasi di URL
   useEffect(() => {
@@ -298,7 +265,7 @@ const Login = () => {
     try {
       // Gunakan fetch langsung daripada apiFetch untuk menghindari redirection otomatis saat 401
       const baseURL = import.meta.env.VITE_APP_ENV === 'production' 
-        ? 'https://amaturalist.com/api'
+        ? 'https://talinara.com/api'
         : 'http://localhost:8000/api';
         
       const response = await fetch(`${baseURL}/verification-status`, {
@@ -361,7 +328,7 @@ const Login = () => {
       console.log('Resending verification email to:', emailOrUsername);
       // Gunakan fetch langsung daripada apiFetch
       const baseURL = import.meta.env.VITE_APP_ENV === 'production' 
-        ? 'https://amaturalist.com/api'
+        ? 'https://talinara.com/api'
         : 'http://localhost:8000/api';
         
       const response = await fetch(`${baseURL}/resend-verification`, {
@@ -428,19 +395,20 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Cek apakah dalam cooldown login
-    if (loginCooldown > 0) {
-      toast.warning(`Terlalu banyak percobaan login. Silakan tunggu ${loginCooldown} detik sebelum mencoba lagi.`);
-      return;
-    }
-    
     setIsLoading(true);
     setError(''); // Hanya reset error message, bukan input fields
     setEmailVerificationRequired(false);
 
+    // Validasi panjang password
+    if (password.length < 6) {
+      setIsLoading(false);
+      toast.error('Password minimal harus 6 karakter');
+      setError('Password terlalu pendek. Silakan masukkan password minimal 6 karakter.');
+      return;
+    }
+
     try {
-      // console.log('Attempting login with:', emailOrUsername);
+      console.log('Attempting login with:', emailOrUsername);
       const response = await apiFetch('/login', {
         method: 'POST',
         headers: {
@@ -464,17 +432,22 @@ const Login = () => {
           return;
         }
         
-        // Tampilkan pesan error yang lebih spesifik
-        let errorMessage = 'Login gagal. ';
+        // Tampilkan pesan error yang lebih spesifik dan ramah pengguna
+        let errorMessage = '';
         if (data.error === 'INVALID_CREDENTIALS') {
-          errorMessage += 'Username/Email atau password salah.';
+          errorMessage = 'Username/Email atau password yang Anda masukkan tidak sesuai. Silakan periksa kembali.';
         } else if (data.error === 'USER_NOT_FOUND') {
-          errorMessage += 'Akun tidak ditemukan.';
+          errorMessage = 'Akun tidak ditemukan. Pastikan Anda sudah mendaftar sebelumnya.';
+        } else if (data.error === 'INVALID_PASSWORD') {
+          errorMessage = 'Password yang Anda masukkan salah. Silakan coba lagi.';
+        } else if (data.error === 'ACCOUNT_LOCKED') {
+          errorMessage = 'Akun Anda terkunci karena terlalu banyak percobaan login. Silakan tunggu beberapa saat atau reset password Anda.';
         } else {
-          errorMessage += 'Silakan cek kembali username/email dan password Anda.';
+          errorMessage = 'Terjadi kesalahan saat login. Silakan coba lagi nanti.';
         }
         
         toast.error(errorMessage);
+        setError(errorMessage);
         throw new Error(errorMessage);
       }
 
@@ -575,26 +548,14 @@ const Login = () => {
           err.message.includes('EMAIL_NOT_VERIFIED')
         )) {
         handleVerificationRequired();
-      } else if (err.message && (
-          err.message.includes('Terlalu banyak permintaan') ||
-          err.message.includes('Too many requests')
-        )) {
-        // Penanganan error 429 (Too Many Requests)
-        setCooldown('login', 60000); // Set cooldown 1 menit
-        const remainingCooldown = getRemainingCooldown('login');
-        setLoginCooldown(remainingCooldown);
-        
-        toast.error(`Terlalu banyak percobaan login. Harap tunggu ${remainingCooldown} detik sebelum mencoba lagi.`);
-        setError(`Terlalu banyak percobaan login. Harap tunggu ${remainingCooldown} detik sebelum mencoba lagi.`);
-        // Tidak membersihkan input dan tidak melakukan logout
       } else if (err instanceof TypeError && err.message.includes('fetch')) {
-        // Error jaringan
-        toast.error('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
-        setError('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+        // Error jaringan dengan pesan yang lebih ramah
+        const networkError = 'Tidak dapat terhubung ke server. Mohon periksa koneksi internet Anda dan coba lagi.';
+        toast.error(networkError);
+        setError(networkError);
       } else {
         setError(err.message);
       }
-      // Tidak perlu membersihkan input saat terjadi error
     } finally {
       setIsLoading(false);
     }
@@ -732,31 +693,13 @@ const Login = () => {
             </div>
           )}
 
-          {loginCooldown > 0 && (
-            <div className="rounded-md p-4 border bg-blue-900 bg-opacity-20 border-blue-800">
-              <div className="flex items-start">
-                <Clock className="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm text-blue-400">
-                    Terlalu banyak percobaan login. Silakan tunggu {loginCooldown} detik sebelum mencoba lagi.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <button
             type="submit"
-            disabled={isLoading || loginCooldown > 0}
+            disabled={isLoading}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1a73e8] hover:bg-[#0d47a1] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a73e8] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <Loader2 className="animate-spin h-5 w-5" />
-            ) : loginCooldown > 0 ? (
-              <>
-                <Clock className="h-5 w-5 mr-2" />
-                Tunggu {loginCooldown}s
-              </>
             ) : (
               'Masuk'
             )}
